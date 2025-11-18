@@ -1,0 +1,30 @@
+# Core Data Science Libraries
+numpy>=1.21.0
+pandas>=1.3.0
+scipy>=1.7.0
+
+# Time Series Analysis
+statsmodels>=0.13.0
+arch>=5.0.0
+pmdarima>=2.0.0
+
+# Data Collection
+yfinance>=0.2.0
+
+# Visualization
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Machine Learning / Evaluation
+scikit-learn>=1.0.0
+
+# Cryptocurrency Exchange API (for Section 2 - Binance trading)
+ccxt>=3.0.0
+
+# Excel File Support (for saving results)
+openpyxl>=3.0.0
+
+# Testing Framework
+pytest>=7.0.0
+pytest-cov>=3.0.0
+

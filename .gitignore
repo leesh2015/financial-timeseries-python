@@ -205,3 +205,21 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Excel files
+*.xlsx
+*.xls
+*.xlsm
+*.xlsb
+
+# Image files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.svg
+*.pdf
+*.tiff
+*.tif
+*.webp
