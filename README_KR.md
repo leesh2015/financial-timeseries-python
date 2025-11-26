@@ -137,11 +137,27 @@ Python을 활용한 금융 시계열 분석, 알고리즘 트레이딩 전략, �
   - 롱 청산: `upper_price > upper_bound_mean`
   - 동적 재최적화: ECT alpha가 음수에서 양수로 변경될 때
 
-### Section 4: 팩터 기반 자산 가격 결정 모델
+### Section 4: 고급 시계열 모델링
 
-**상태**: ✅ 강의 제공 중
+**상태**: 🚧 In preparation
 
-[📖 상세 문서 보기](Section4.Factor-Based%20Asset%20Pricing%20Models/README.md)
+[📖 상세 문서 보기](Section4.Advanced%20Time%20Series%20Models/README.md)
+
+복잡한 시계열 패턴을 다루기 위한 통계·머신러닝 접근법:
+
+- **Chapter 1**: 상태공간 모형 및 칼만 스무더를 이용한 동적 베타 추적
+- **Chapter 2**: 커스텀/FilterPy 기반 칼만 필터로 실시간 추세 추정
+- **Chapter 3**: Prophet을 활용한 계절성 예측과 재학습 파이프라인
+- **Chapter 4**: LSTM 방향성 분류 모델과 클래스 불균형 대응 전략
+- **Chapter 5**: XGBoost 기반 고차원 특징 생성과 확률적 신호
+- **Chapter 6**: 웨이브릿 변환을 통한 멀티스케일 특징 추출
+- **Chapter 7**: 코퓰라 모델을 활용한 종목 간 의존 구조 및 테일보정
+
+### Section 5: 팩터 기반 자산 가격 결정 모델
+
+**상태**: 🚧 In preparation
+
+[📖 상세 문서 보기](Section5.Factor-Based%20Asset%20Pricing%20Models/README.md)
 
 팩터 기반 자산 가격 결정 모델의 이론적 기초와 실전 응용:
 
@@ -201,9 +217,15 @@ cd "Section3.Production Investment Strategy"
 python production_simulation.py
 ```
 
-**Section 4 - 팩터 모델:**
+**Section 4 - 고급 시계열 모델:**
 ```bash
-cd "Section4.Factor-Based Asset Pricing Models/Chapter4.Practical Application and Backtesting"
+cd "Section4.Advanced Time Series Models/Chapter1.State-Space Models"
+python state_space_model.py
+```
+
+**Section 5 - 팩터 모델:**
+```bash
+cd "Section5.Factor-Based Asset Pricing Models/Chapter4.Practical Application and Backtesting"
 python factor_portfolio_backtest.py
 ```
 
@@ -274,7 +296,8 @@ python factor_portfolio_backtest.py
 | Section 1: 시계열 기초 | `Section1.Financial Time Series Analysis/` | ✅ 제공 중 |
 | Section 2: 전략 설계 | `Section2.Advanced Investment Strategy Design/` | ✅ 제공 중 |
 | Section 3: 프로덕션 시스템 | `Section3.Production Investment Strategy/` | 🚀 라이브 |
-| Section 4: 팩터 모델 | `Section4.Factor-Based Asset Pricing Models/` | ✅ 제공 중 |
+| Section 4: 고급 시계열 모델 | `Section4.Advanced Time Series Models/` | 🚧 준비 중 |
+| Section 5: 팩터 모델 | `Section5.Factor-Based Asset Pricing Models/` | 🚧 준비 중 |
 
 ## 🤝 기여하기
 

@@ -212,6 +212,10 @@ __marimo__/
 *.xlsm
 *.xlsb
 
+# Trained model artifacts (not needed in repo)
+Section4.Advanced Time Series Models/Chapter4.Deep Learning/models/
+Section4.Advanced Time Series Models/Chapter5.Tree-Based ML/models/
+
 # Image files
 *.png
 *.jpg

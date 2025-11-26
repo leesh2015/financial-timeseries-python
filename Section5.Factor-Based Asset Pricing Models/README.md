@@ -1,4 +1,4 @@
-# Section 4: Factor-Based Asset Pricing Models
+# Section 5: Factor-Based Asset Pricing Models
 
 ## Overview
 
@@ -17,7 +17,7 @@ By the end of this section, you will be able to:
 ## 📁 Repository Structure
 
 ```
-Section4.Factor-Based Asset Pricing Models/
+Section5.Factor-Based Asset Pricing Models/
 ├── Chapter1.CAPM Limitations and Fama-French Model Origins/
 │   ├── capm_limitations.py          # CAPM 한계 실증 및 시각화
 │   └── (output files: capm_limitations_analysis.png, capm_regression_results.csv)
@@ -517,8 +517,8 @@ python factor_portfolio_backtest.py
 ### Installing Packages
 
 ```bash
-# Navigate to Section4 directory
-cd "Section4.Factor-Based Asset Pricing Models"
+# Navigate to Section5 directory
+cd "Section5.Factor-Based Asset Pricing Models"
 
 # Install all required packages
 pip install -r requirements.txt

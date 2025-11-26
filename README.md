@@ -137,11 +137,27 @@ A production-level trading system currently operating with real capital:
   - Long Exit: `upper_price > upper_bound_mean`
   - Dynamic Re-optimization: When ECT alpha changes from negative to positive
 
-### Section 4: Factor-Based Asset Pricing Models
+### Section 4: Advanced Time Series Models
 
-**Status**: ✅ Course Available
+**Status**: 🚧 In preparation
 
-[📖 Detailed Documentation](Section4.Factor-Based%20Asset%20Pricing%20Models/README.md)
+[\📖 Detailed Documentation](Section4.Advanced%20Time%20Series%20Models/README.md)
+
+Modern statistical and ML techniques for challenging temporal structures:
+
+- **Chapter 1**: State-Space Models – time-varying beta tracking and error-correction diagnostics
+- **Chapter 2**: Kalman Filter (custom + FilterPy) – recursive trend extraction and smoothing
+- **Chapter 3**: Prophet Model – seasonality-aware forecasting with rolling re-training
+- **Chapter 4**: Deep Learning (LSTM) – direction classification with imbalance-aware training
+- **Chapter 5**: Tree-Based ML (XGBoost) – feature-rich log-return forecasting with adaptive thresholds
+- **Chapter 6**: Wavelet Transform – multi-resolution feature engineering for volatility regimes
+- **Chapter 7**: Copula Models – dependence modeling and tail-risk simulation
+
+### Section 5: Factor-Based Asset Pricing Models
+
+**Status**: 🚧 In preparation
+
+[📖 Detailed Documentation](Section5.Factor-Based%20Asset%20Pricing%20Models/README.md)
 
 Theoretical foundations and practical applications of factor-based asset pricing models:
 
@@ -201,9 +217,15 @@ cd "Section3.Production Investment Strategy"
 python production_simulation.py
 ```
 
-**Section 4 - Factor Models:**
+**Section 4 - Advanced Time Series Models:**
 ```bash
-cd "Section4.Factor-Based Asset Pricing Models/Chapter4.Practical Application and Backtesting"
+cd "Section4.Advanced Time Series Models/Chapter1.State-Space Models"
+python state_space_model.py
+```
+
+**Section 5 - Factor Models:**
+```bash
+cd "Section5.Factor-Based Asset Pricing Models/Chapter4.Practical Application and Backtesting"
 python factor_portfolio_backtest.py
 ```
 
@@ -274,7 +296,8 @@ This project implements state-of-the-art financial econometrics techniques:
 | Section 1: Time Series Fundamentals | `Section1.Financial Time Series Analysis/` | ✅ Available |
 | Section 2: Strategy Design | `Section2.Advanced Investment Strategy Design/` | ✅ Available |
 | Section 3: Production System | `Section3.Production Investment Strategy/` | 🚀 Live |
-| Section 4: Factor Models | `Section4.Factor-Based Asset Pricing Models/` | ✅ Available |
+| Section 4: Advanced Time Series Models | `Section4.Advanced Time Series Models/` | 🚧 In preparation |
+| Section 5: Factor Models | `Section5.Factor-Based Asset Pricing Models/` | 🚧 In preparation |
 
 ## 🤝 Contributing
 
