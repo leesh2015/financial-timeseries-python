@@ -62,15 +62,17 @@ Each chapter contains:
 
 ### Chapter 2 — Kalman Filter
 **Theory**:
-- Linear state-space: \\(x_{t} = Fx_{t-1} + w_t\\), \\(z_t = H x_t + v_t\\) with Gaussian noise. We model price level and velocity.
+- Linear state-space: \\(x_{t} = Fx_{t-1} + w_t\\), \\(z_t = H x_t + v_t\\) with Gaussian noise. In this chapter the hidden state is \\([\alpha_t, \beta_t]\\), so the entire module centers on dynamic beta tracking rather than raw price smoothing.
 
 **Implementation**:
-- Custom version implements the prediction/update loop manually, adaptive measurement noise via rolling std.
-- FilterPy version mirrors the same pipeline but uses the library’s helpers.
+- `1.Custom Implementation/`: hand-written Kalman loop with fixed Q/R (very smooth beta path).
+- `2.FilterPy/`: same model, but FilterPy plus Sage–Husa adaptive noise so Q/R widen/narrow based on innovation variance.
+- `3.PyKalman_EM/`: uses `pykalman` EM to learn Q/R automatically before smoothing.
+- `4.ParticleFilter/`: bootstrap particle filter for \\(\beta_t\\) when Gaussian/linear assumptions break.
 
 **Backtest**:
-- Signals are derived from the filtered velocity (trend) and price gap between filtered price and actual price.
-- Entire filter is run once per dataset (O(N)) and signals are shifted to avoid leakage.
+- Every implementation outputs a beta series that feeds a quantile-based switching strategy (low quantile ⇒ long, high quantile ⇒ exit/sell); quantile bands differ per model (tight for custom, mid for FilterPy/PyKalman, wide for Particle Filter).
+- Signals are shifted by one bar to eliminate look-ahead; walk-forward backtests live alongside each folder (`backtest_kalman.py`, `backtest_filterpy.py`, `backtest_pykalman.py`, `backtest_particle.py`).
 
 ### Chapter 3 — Prophet Model
 **Theory**:

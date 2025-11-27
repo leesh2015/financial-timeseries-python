@@ -146,7 +146,7 @@ A production-level trading system currently operating with real capital:
 Modern statistical and ML techniques for challenging temporal structures:
 
 - **Chapter 1**: State-Space Models – time-varying beta tracking and error-correction diagnostics
-- **Chapter 2**: Kalman Filter (custom + FilterPy) – recursive trend extraction and smoothing
+- **Chapter 2**: Kalman Filter suite (Custom, FilterPy, PyKalman EM, Particle) – dynamic beta tracking with quantile-based switching
 - **Chapter 3**: Prophet Model – seasonality-aware forecasting with rolling re-training
 - **Chapter 4**: Deep Learning (LSTM) – direction classification with imbalance-aware training
 - **Chapter 5**: Tree-Based ML (XGBoost) – feature-rich log-return forecasting with adaptive thresholds

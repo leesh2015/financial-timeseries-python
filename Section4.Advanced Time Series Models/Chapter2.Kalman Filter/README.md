@@ -2,11 +2,11 @@
 
 ## Overview
 
-This chapter demonstrates Kalman Filter implementation using two main approaches:
-1. **Custom Implementation** - From-scratch implementation for educational purposes
-2. **FilterPy** - Most popular Python Kalman Filter library
-
-**Note:** PyKalman is another option available, but it's not included here due to computational cost vs. utility considerations.
+This chapter demonstrates state-space estimation with four complementary approaches:
+1. **Custom Implementation** - From-scratch Kalman filter for educational purposes
+2. **FilterPy** - Production-ready Kalman filter with adaptive noise and EKF/UKF support
+3. **PyKalman EM** - Log-likelihood maximization with PyKalman’s EM routine
+4. **Particle Filter** - Monte-Carlo approach for non-Gaussian, non-linear tracking
 
 ## 📁 Structure
 
@@ -18,6 +18,10 @@ Chapter2.Kalman Filter/
 ├── 2.FilterPy/
 │   ├── kalman_filter_filterpy.py    # FilterPy implementation
 │   └── backtest_filterpy.py          # Backtest using FilterPy
+├── 3.PyKalman_EM/
+│   └── pykalman_em_demo.py        # EM-based alpha/beta smoothing with PyKalman
+├── 4.ParticleFilter/
+│   └── particle_filter_demo.py    # Bootstrap particle filter for dynamic beta
 └── README.md
 ```
 
@@ -55,6 +59,8 @@ cd "1.Custom Implementation"
 python kalman_filter.py
 python backtest_kalman.py
 ```
+> 이 구현은 `[alpha, beta]`를 상태로 두고 TQQQ vs NASDAQ 관계를 추정합니다.  
+> 백테스트에서는 베타 분포의 하위/상위 분위수를 신호 트리거로 사용합니다.
 
 ### 2. FilterPy
 
@@ -78,48 +84,75 @@ cd "2.FilterPy"
 python kalman_filter_filterpy.py
 python backtest_filterpy.py
 ```
+> FilterPy 버전도 동일한 `[alpha, beta]` 상태를 추정하되, 선택적으로 적응형 잡음 업데이트를 적용하고 EKF/UKF로 확장할 수 있습니다.
+
+### 3. PyKalman EM
+
+Leverages `pykalman` to learn transition/observation covariances via EM and smooth the dynamic alpha/beta relationship.
+
+**Install dependency**
+```bash
+pip install pykalman
+```
+
+**Usage**
+```bash
+cd "3.PyKalman_EM"
+python pykalman_em_demo.py
+```
+
+### 4. Particle Filter
+
+Implements a lightweight bootstrap particle filter (systematic resampling) to handle non-Gaussian noise or heavier state jumps.
+
+**Usage**
+```bash
+cd "4.ParticleFilter"
+python particle_filter_demo.py
+```
 
 ## 🔍 Comparison
 
-| Feature | Custom | FilterPy |
-|---------|--------|----------|
-| **Ease of Use** | Medium | ⭐⭐⭐⭐⭐ |
-| **Documentation** | Low | ⭐⭐⭐⭐⭐ |
-| **Flexibility** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| **Performance** | Medium | High |
-| **Time-Varying Beta** | ✅ Easy | ✅ Easy |
-| **Smoothing** | ❌ | ✅ |
-| **Parameter Learning** | ❌ Manual | ⚠️ Adaptive |
-| **Unique Features** | Educational | Adaptive Noise |
-
-**Note:** PyKalman is another option with EM algorithm support, but it's not included here due to computational cost vs. utility considerations.
+| Feature | Custom | FilterPy | PyKalman EM | Particle Filter |
+|---------|--------|----------|-------------|-----------------|
+| **Ease of Use** | Medium | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ |
+| **Documentation** | Low | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | Medium |
+| **Flexibility** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | Linear Gaussian | Non-linear / non-Gaussian |
+| **Performance** | Medium | High | High (if model fits) | Depends on particles |
+| **Time-Varying Beta** | ✅ | ✅ | ✅ (with credible bands) | ✅ (percentile bands) |
+| **Smoothing** | ❌ | ✅ | ✅ (Rauch smoother) | ✅ (posterior samples) |
+| **Parameter Learning** | Manual | Adaptive noise | ✅ EM | Implicit via resampling |
+| **Unique Features** | Educational | EKF/UKF + adaptive Q/R | Log-likelihood EM | Monte-Carlo inference |
 
 ## 🎯 Key Differences (Why They Perform Differently)
 
 ### 1. Custom Implementation
-- **Fixed Parameters**: Uses hardcoded Q and R values
-- **Purpose**: Educational - understand the algorithm
-- **Performance**: Baseline for comparison
+- Fixed Q/R → deterministic baseline
 
 ### 2. FilterPy
-- **Adaptive Noise Estimation**: Dynamically adjusts Q and R based on prediction/innovation errors
-- **Advantage**: Adapts to changing market conditions in real-time
-- **Performance**: Better in volatile markets due to adaptive nature
+- Adaptive noise (Sage-Husa) + EKF/UKF hooks
+
+### 3. PyKalman EM
+- Learns Q/R by maximizing log-likelihood, provides smoothed states + credible intervals
+
+### 4. Particle Filter
+- Handles non-linearities and fat-tailed noise via resampling-based posterior approximation
 
 
 ## 💡 Recommendations
 
-1. **For Learning**: Start with Custom Implementation
-2. **For Production**: Use FilterPy (most popular and reliable, adaptive noise works well)
-3. **For Rolling Window Backtesting**: FilterPy (adaptive) > Custom (fixed parameters)
+1. **First Principles**: Start with Custom Implementation
+2. **Production Kalman**: FilterPy (adaptive, EKF/UKF)
+3. **Parameter Learning / Credible Bands**: PyKalman EM demo
+4. **Non-Gaussian / Stress Testing**: Particle Filter demo
 
 ## 📊 Backtest Strategy
 
-All backtest implementations use the same strategy:
+The backtest scripts (`backtest_kalman.py`, `backtest_filterpy.py`, `backtest_pykalman.py`, `backtest_particle.py`) share the same walk-forward strategy:
 
-- **Signal Generation**: Based on filtered trend and price deviation
-- **Buy Signal**: When filtered trend is positive AND price is below filtered price
-- **Sell Signal**: When filtered trend is negative OR price is above filtered price
+- **Signal Generation**: Use yesterday의 동적 베타가 분위수 밴드(기본 25/75%) 바깥인지 확인
+- **Buy Signal**: `beta < lower_quantile` (레버리지 ETF가 덜 민감 → 저평가 구간)
+- **Sell Signal**: `beta > upper_quantile` (베타 과열/과민 반응 구간)
 - **Hold**: Otherwise
 
 **Key Features:**
@@ -130,46 +163,18 @@ All backtest implementations use the same strategy:
 
 ## ⚠️ Notes
 
-### Performance Differences (Backtesting Results)
+### Performance Differences & Notes
 
-**Expected Performance Characteristics:**
+- **Custom**: Baseline performance with fixed parameters. Consistent, predictable, great for intuition.
+- **FilterPy (Adaptive)**: Typically shows better risk-adjusted returns thanks to adaptive Q/R. Run `backtest_filterpy.py` to benchmark.
+- **PyKalman EM**: Focused on state-estimation quality—use it to study smoothed alpha/beta + log-likelihood diagnostics rather than PnL.
+- **Particle Filter**: Demonstrates robustness under fat tails or regime jumps; extend with your own trading rules if desired.
 
-1. **Custom**: Baseline performance with fixed parameters
-   - Consistent, predictable results
-   - Good for understanding the algorithm
-
-2. **FilterPy (Adaptive)**: Typically shows better performance
-   - Adaptive noise estimation adapts to market volatility
-   - Better risk-adjusted returns in volatile markets
-   - **Run backtest to see actual results**: `cd "2.FilterPy" && python backtest_filterpy.py`
-
-**Key Insights:**
-- **Not all methods need to be optimal**: Each has different strengths
-- **FilterPy's adaptive noise** typically works well in backtesting (adapts to market volatility)
-- **Run the backtests yourself** to see performance on your data and time period
-
-### Why Implementations Differ
-
-1. **Custom**: Fixed parameters → consistent baseline
-2. **FilterPy**: Sage-Husa adaptive noise → adapts Q and R based on prediction/innovation errors
-
-**Note:** PyKalman is another option with EM algorithm support, but it's not included here due to computational cost vs. utility considerations for rolling window backtesting.
-
-### When to Use Each
-
-- **Learning/Education**: Custom Implementation (understand the algorithm)
-- **Production Trading**: FilterPy (adaptive noise adapts to market conditions)
-- **Real-time Systems**: FilterPy (adaptive noise estimation, fast computation)
-
-### Important Notes
-
-- **Adaptive vs Fixed**: FilterPy's adaptive approach shows clear advantage in backtesting
-- **Not All Methods Are Equal**: Each package has different design goals and strengths
-- **Context Matters**: What works in backtesting may differ from what works in production
+**Key Insight** – Pick the tool that matches your modelling goal (intuition, production, parameter learning, or stress testing). Running the scripts on your own data horizon is strongly recommended.
 
 ## 📖 References
 
 - **FilterPy**: https://github.com/rlabbe/filterpy
+- **PyKalman**: https://pykalman.github.io/
 - **Kalman Filter Book**: "Kalman and Bayesian Filters in Python" by Roger Labbe
-- **Note**: PyKalman (https://pykalman.github.io/) is another option but not included here due to computational cost vs. utility considerations
 
