@@ -30,16 +30,17 @@ except ImportError:
 
 
 def generate_trading_signals_xgboost(returns, prices, model_name='tqqq', lookback=20,
-                                     prediction_threshold=None, use_adaptive_threshold=True):
+                                     prediction_threshold=None, use_adaptive_threshold=False,
+                                     train_ratio=0.7):
     """
-    Generate trading signals based on pre-trained XGBoost model
+    Generate trading signals based on pre-trained XGBoost binary classification model
     
     Strategy:
-    - Buy when predicted log return > threshold
-    - Sell when predicted log return < -threshold
+    - Buy when predicted probability of up > threshold (default: optimal threshold from training)
+    - Sell when predicted probability of up < (1 - threshold)
     - Hold otherwise
-    - Uses pre-trained model from xgboost_forecast.py
-    - For TQQQ (high volatility), uses adaptive threshold based on prediction distribution
+    - Uses pre-trained binary classification model from xgboost_forecast.py
+    - Model predicts direction (up/down) not return value
     
     Parameters:
     -----------
@@ -52,9 +53,11 @@ def generate_trading_signals_xgboost(returns, prices, model_name='tqqq', lookbac
     lookback : int
         Feature lookback period (must match trained model)
     prediction_threshold : float, optional
-        Minimum predicted log return for signal. If None, uses adaptive threshold.
+        Minimum predicted probability for buy signal. If None, uses optimal threshold from model metadata.
     use_adaptive_threshold : bool
-        If True, adjusts threshold based on prediction distribution (for high volatility assets)
+        If True, adjusts threshold based on prediction distribution (currently not used for binary classification)
+    train_ratio : float
+        Training period ratio (for compatibility, not used for threshold calculation in binary classification)
     
     Returns:
     --------
@@ -91,8 +94,11 @@ def generate_trading_signals_xgboost(returns, prices, model_name='tqqq', lookbac
         metadata = json.load(f)
     
     model_lookback = metadata.get('lookback', lookback)
-    model_test_rmse = metadata.get('test_rmse', None)
-    model_test_r2 = metadata.get('test_r2', None)
+    model_type = metadata.get('model_type', 'binary_classification')
+    model_test_accuracy = metadata.get('test_accuracy', None)
+    model_test_f1 = metadata.get('test_f1', None)
+    model_test_roc_auc = metadata.get('test_roc_auc', None)
+    optimal_threshold = metadata.get('optimal_threshold', 0.5)
     
     if model_lookback != lookback:
         print(f"   Warning: Model lookback ({model_lookback}) != specified lookback ({lookback})")
@@ -100,12 +106,16 @@ def generate_trading_signals_xgboost(returns, prices, model_name='tqqq', lookbac
         lookback = model_lookback
     
     print(f"   Model loaded successfully!")
+    print(f"   - Model type: {model_type}")
     print(f"   - Model lookback: {lookback}")
-    if model_test_rmse is not None:
-        print(f"   - Model test RMSE: {model_test_rmse:.6f}")
-    if model_test_r2 is not None:
-        print(f"   - Model test R²: {model_test_r2:.4f}")
+    if model_test_accuracy is not None:
+        print(f"   - Model test accuracy: {model_test_accuracy:.4f} ({model_test_accuracy*100:.2f}%)")
+    if model_test_f1 is not None:
+        print(f"   - Model test F1: {model_test_f1:.4f}")
+    if model_test_roc_auc is not None:
+        print(f"   - Model test ROC-AUC: {model_test_roc_auc:.4f}")
     
+    # Create features (same as training)
     feature_matrix = create_features(returns, prices, lookback)
     feature_matrix = feature_matrix.shift(1).dropna()  # only use info up to t-1
     feature_matrix = feature_matrix.reindex(prices.index).dropna()
@@ -114,37 +124,58 @@ def generate_trading_signals_xgboost(returns, prices, model_name='tqqq', lookbac
         print("   ⚠️  Warning: Not enough feature data to generate signals.")
         return pd.Series('hold', index=prices.index)
     
-    preds = pd.Series(model.predict(feature_matrix.values), index=feature_matrix.index)
-    
-    abs_preds = np.abs(preds.values)
-    if prediction_threshold is None or use_adaptive_threshold:
-        if model_name == 'tqqq':
-            adaptive_threshold = np.percentile(abs_preds, 75)
+    # CRITICAL: Use only features that were used during training
+    # This ensures consistency between training and backtesting
+    feature_names = metadata.get('feature_names', None)
+    if feature_names is not None:
+        # Check if all training features are present
+        missing_features = set(feature_names) - set(feature_matrix.columns)
+        if missing_features:
+            print(f"   ⚠️  Warning: Missing features from training: {missing_features}")
+            # Use only available features
+            available_features = [f for f in feature_names if f in feature_matrix.columns]
+            if len(available_features) < len(feature_names):
+                print(f"   ⚠️  Warning: Using {len(available_features)}/{len(feature_names)} training features")
         else:
-            adaptive_threshold = np.percentile(abs_preds, 70)
-        if prediction_threshold is None:
-            prediction_threshold = adaptive_threshold
-            print(f"   Using adaptive threshold: {prediction_threshold:.6f}")
-        elif use_adaptive_threshold:
-            original_threshold = prediction_threshold
-            prediction_threshold = max(prediction_threshold, adaptive_threshold)
-            print(f"   Adjusted threshold from {original_threshold:.6f} to {prediction_threshold:.6f}")
+            available_features = feature_names
+        
+        # Select features in the same order as training
+        feature_matrix = feature_matrix[available_features]
+        print(f"   Using {len(available_features)} features (same as training)")
     else:
-        print(f"   Using fixed threshold: {prediction_threshold:.6f}")
+        print(f"   ⚠️  Warning: feature_names not found in metadata, using all {len(feature_matrix.columns)} features")
+    
+    # Get prediction probabilities (probability of up day)
+    pred_proba = model.predict_proba(feature_matrix.values)[:, 1]
+    preds = pd.Series(pred_proba, index=feature_matrix.index)
+    
+    # Use optimal threshold from model metadata if not specified
+    if prediction_threshold is None:
+        prediction_threshold = optimal_threshold
+        print(f"   Using optimal threshold from model: {prediction_threshold:.4f}")
+    else:
+        print(f"   Using specified threshold: {prediction_threshold:.4f}")
+    
+    # Generate signals based on probability
+    # Buy when probability of up > threshold
+    # Sell when probability of up < (1 - threshold) or we can use a lower threshold
+    sell_threshold = 1 - prediction_threshold  # Symmetric: if buy threshold is 0.6, sell threshold is 0.4
     
     signals = pd.Series('hold', index=prices.index, dtype=object)
     buy_dates = preds.index[preds > prediction_threshold]
-    sell_dates = preds.index[preds < -prediction_threshold]
+    sell_dates = preds.index[preds < sell_threshold]
     signals.loc[buy_dates] = 'buy'
     signals.loc[sell_dates] = 'sell'
     signals = signals.shift(1).fillna('hold')  # execute next day
     
     print(f"\n   Prediction Statistics:")
     print(f"   - Total predictions: {len(preds)}")
-    print(f"   - Min predicted return: {preds.min():.6f}")
-    print(f"   - Max predicted return: {preds.max():.6f}")
-    print(f"   - Mean predicted return: {preds.mean():.6f}")
-    print(f"   - Std predicted return: {preds.std():.6f}")
+    print(f"   - Min predicted probability: {preds.min():.4f}")
+    print(f"   - Max predicted probability: {preds.max():.4f}")
+    print(f"   - Mean predicted probability: {preds.mean():.4f}")
+    print(f"   - Std predicted probability: {preds.std():.4f}")
+    print(f"   - Buy threshold: {prediction_threshold:.4f}")
+    print(f"   - Sell threshold: {sell_threshold:.4f}")
     
     total_signals = (signals != 'hold').sum()
     print(f"\n   Signal Statistics:")
@@ -173,16 +204,18 @@ def run_backtest_xgboost():
     tqqq = data['tqqq']
     
     # Generate signals using pre-trained model
-    print("\n1. Generating trading signals using pre-trained XGBoost model...")
-    print("   Strategy: Buy when predicted log return > threshold, Sell when < -threshold")
-    print("   Note: Uses adaptive threshold for TQQQ (high volatility asset)")
+    print("\n1. Generating trading signals using pre-trained XGBoost binary classification model...")
+    print("   Strategy: Buy when predicted probability of up > threshold, Sell when < (1 - threshold)")
+    print("   Note: Model predicts direction (up/down) not return value")
     print("   Note: Model must be trained first using xgboost_forecast.py")
+    train_ratio = 0.7  # Must match walk_forward_backtest train_ratio
     try:
         signals = generate_trading_signals_xgboost(
             tqqq['Log_Returns'].dropna(), tqqq['Close'],
             model_name='tqqq', lookback=20, 
-            prediction_threshold=None,  # Use adaptive threshold
-            use_adaptive_threshold=True
+            prediction_threshold=None,  # Use optimal threshold from model metadata
+            use_adaptive_threshold=False,  # Not used for binary classification
+            train_ratio=train_ratio  # Use same train_ratio as backtest
         )
     except FileNotFoundError as e:
         print(f"\n   Error: {e}")
@@ -191,7 +224,7 @@ def run_backtest_xgboost():
     
     # Run backtest
     print("2. Running backtest...")
-    results = walk_forward_backtest(tqqq['Close'], signals, train_ratio=0.7)
+    results = walk_forward_backtest(tqqq['Close'], signals, train_ratio=train_ratio)
     
     # Print results
     print(f"\n{'='*60}")

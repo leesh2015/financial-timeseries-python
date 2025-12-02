@@ -149,7 +149,7 @@ Modern statistical and ML techniques for challenging temporal structures:
 - **Chapter 2**: Kalman Filter suite (Custom, FilterPy, PyKalman EM, Particle) – dynamic beta tracking with quantile-based switching
 - **Chapter 3**: Prophet Model – seasonality-aware forecasting with rolling re-training
 - **Chapter 4**: Deep Learning (LSTM) – direction classification with imbalance-aware training
-- **Chapter 5**: Tree-Based ML (XGBoost) – feature-rich log-return forecasting with adaptive thresholds
+- **Chapter 5**: Tree-Based ML (XGBoost) – binary classification for direction prediction with rich technical features and ROC-optimized thresholds
 - **Chapter 6**: Wavelet Transform – multi-resolution feature engineering for volatility regimes
 - **Chapter 7**: Copula Models – dependence modeling and tail-risk simulation
 

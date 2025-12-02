@@ -149,7 +149,7 @@ Python을 활용한 금융 시계열 분석, 알고리즘 트레이딩 전략, �
 - **Chapter 2**: 커스텀·FilterPy·PyKalman EM·Particle 필터로 동적 β 추적 및 분위 기반 스위칭
 - **Chapter 3**: Prophet을 활용한 계절성 예측과 재학습 파이프라인
 - **Chapter 4**: LSTM 방향성 분류 모델과 클래스 불균형 대응 전략
-- **Chapter 5**: XGBoost 기반 고차원 특징 생성과 확률적 신호
+- **Chapter 5**: XGBoost 기반 이진 분류 모델 – 방향 예측을 위한 고차원 특징과 ROC 최적화 임계값
 - **Chapter 6**: 웨이브릿 변환을 통한 멀티스케일 특징 추출
 - **Chapter 7**: 코퓰라 모델을 활용한 종목 간 의존 구조 및 테일보정
 

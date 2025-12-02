@@ -18,7 +18,7 @@ This section collects the advanced methodologies that complement the core Udemy 
 2. Build Kalman filters from scratch and with FilterPy, including adaptive noise tuning.
 3. Operate Prophet for seasonality-aware forecasts with configurable retraining cadence.
 4. Train LSTM classifiers that avoid data leakage and handle class imbalance via class weights and optimal threshold search.
-5. Deploy tree-based regressors (XGBoost/LightGBM) with rich technical features and adaptive signal thresholds.
+5. Deploy tree-based binary classifiers (XGBoost) with rich technical features, class imbalance handling, and ROC-optimized thresholds.
 6. Generate wavelet-based multi-resolution features for volatility clustering and denoising.
 7. Model joint distributions with Gaussian / Clayton copulas, simulate tail scenarios, and feed them into risk-aware backtests.
 
@@ -102,17 +102,21 @@ Each chapter contains:
 
 ### Chapter 5 — Tree-Based ML (XGBoost)
 **Theory**:
-- Gradient boosted trees regress on log returns using engineered technical features (lags, moving averages, RSI, volatility).
-- Adaptive thresholds reflect distribution of predicted returns.
+- Gradient boosted trees perform **binary classification** (up/down direction) using rich technical features (extended lags, rolling statistics, RSI, momentum, volatility).
+- Class imbalance is handled via `scale_pos_weight` and balanced class weights.
+- Optimal classification threshold is determined using ROC curve analysis (Youden's J statistic).
 
 **Implementation**:
-- `xgboost_forecast.py` trains per asset, saves `.pkl` model + metadata JSON (best iteration, RMSE, lookback).
-- `backtest_xgboost.py` precomputes the entire feature matrix once, shifts it by one day, and generates predictions.
+- `xgboost_forecast.py` trains binary classifiers per asset, saves `.pkl` model + metadata JSON (best iteration, accuracy/F1/ROC-AUC, optimal threshold, feature names).
+- Features include extended lag windows (1, 2, 3, 5, 10, 20, 30, 60), multiple rolling statistics, and technical indicators.
+- Highly correlated features (correlation > 0.95) are automatically removed to reduce noise.
+- Two-stage training: minimum iterations first, then early stopping to ensure sufficient learning.
 
 **Backtest**:
-- Predicted returns sorted ⇒ choose percentile-based threshold (adaptive).
-- Buy/Sell dates are taken from `preds.index` to ensure aligned assignment (`signals.loc[buy_dates]`).
-- If no signals remain, the script forces at least one long/short to avoid empty backtests.
+- `backtest_xgboost.py` loads pre-trained model and metadata, precomputes feature matrix once, shifts by one day to prevent look-ahead.
+- Buy when predicted probability of up > optimal threshold (from training).
+- Sell when predicted probability of up < (1 - optimal threshold).
+- Signals are shifted by one day to execute on the next bar.
 
 ### Chapter 6 — Wavelet Transform
 **Theory**:
