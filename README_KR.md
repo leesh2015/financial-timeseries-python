@@ -14,7 +14,7 @@ Python을 활용한 금융 시계열 분석, 알고리즘 트레이딩 전략, �
 
 👉 [강의 등록하기](https://www.udemy.com/course/mastering-financial-time-series-analysis-with-python/?referralCode=BA6CA9A3E5406E41359E&couponCode=KRLETSLEARNNOW)
 
-- **섹션 1 & 2**: 강의 자료가 완전히 업로드되어 제공됩니다
+- **모든 섹션**: 강의 자료가 완전히 업로드되어 제공됩니다
 - **섹션 3**: 실시간 거래 기록이 있는 라이브 프로덕션 시스템
 
 ## 📊 실시간 거래 기록
@@ -93,7 +93,7 @@ Python을 활용한 금융 시계열 분석, 알고리즘 트레이딩 전략, �
 
 ### Section 3: 프로덕션 투자 전략
 
-**상태**: 🚀 **라이브 프로덕션 시스템**
+**상태**: ✅ 강의 제공 중 🚀 **라이브 프로덕션 시스템**
 
 실제 자금으로 운영 중인 프로덕션 수준의 트레이딩 시스템:
 
@@ -139,7 +139,7 @@ Python을 활용한 금융 시계열 분석, 알고리즘 트레이딩 전략, �
 
 ### Section 4: 고급 시계열 모델링
 
-**상태**: 🚧 In preparation
+**상태**: ✅ 강의 제공 중
 
 [📖 상세 문서 보기](Section4.Advanced%20Time%20Series%20Models/README.md)
 
@@ -155,7 +155,7 @@ Python을 활용한 금융 시계열 분석, 알고리즘 트레이딩 전략, �
 
 ### Section 5: 팩터 기반 자산 가격 결정 모델
 
-**상태**: 🚧 In preparation
+**상태**: ✅ 강의 제공 중
 
 [📖 상세 문서 보기](Section5.Factor-Based%20Asset%20Pricing%20Models/README.md)
 
@@ -181,6 +181,40 @@ Python을 활용한 금융 시계열 분석, 알고리즘 트레이딩 전략, �
   - 워킹 포워드 검증
   - 거래 비용 분석
   - 성과 평가 (Sharpe, Alpha 등)
+
+### Appendix: 금융수학 이론과 실전 예제
+
+**상태**: ✅ 제공 중
+
+[📖 상세 문서 보기](Appendix/README.md)
+
+퀀트 트레이딩에서 다루는 모든 금융수학 이론을 **이해하기 쉬운 예제 코드**로 구현한 가이드입니다:
+
+- **Chapter 1: 선형대수학 (Linear Algebra)**
+  - 포트폴리오 최적화
+  - PCA를 이용한 팩터 분석
+  - 다요인 회귀분석 (Fama-French)
+  - VAR & VECM 모델의 행렬 연산
+
+- **Chapter 2: 해석학 & 미적분 (Calculus)**
+  - 경사하강법 시각화
+  - 역전파 알고리즘 이해
+  - GARCH 모델의 미적분 원리
+  - Wavelet Transform
+  - 이토 보조정리
+  - Bayesian Optimization
+
+- **Chapter 3: 확률론 & 시계열 통계**
+  - 정상성 검정과 이해
+  - ARIMA 모델의 확률론적 기초
+  - 공적분과 페어 트레이딩
+  - Copula를 이용한 의존성 분석
+  - Monte Carlo 시뮬레이션
+
+- **Chapter 4: 베이지안 통계 & 필터링**
+  - 베이지안 추론 예제
+  - 칼만 필터 이해하기
+  - 상태 공간 모델
 
 ## 🚀 빠른 시작
 
@@ -227,6 +261,26 @@ python state_space_model.py
 ```bash
 cd "Section5.Factor-Based Asset Pricing Models/Chapter4.Practical Application and Backtesting"
 python factor_portfolio_backtest.py
+```
+
+**Appendix - 금융수학 이론:**
+```bash
+# 프로젝트 루트에서 의존성 설치 (이미 설치했다면 생략 가능)
+pip install -r requirements.txt
+
+cd Appendix
+
+# Chapter 1: 선형대수학
+python Chapter1_Linear_Algebra/portfolio_optimization.py
+
+# Chapter 2: 미적분
+python Chapter2_Calculus/gradient_descent_demo.py
+
+# Chapter 3: 확률론 & 통계
+python Chapter3_Probability_Statistics/stationarity_analysis.py
+
+# Chapter 4: 베이지안
+python Chapter4_Bayesian_Filtering/kalman_filter_demo.py
 ```
 
 결과는 각 섹션의 `results/` 폴더에 저장됩니다.
@@ -295,9 +349,10 @@ python factor_portfolio_backtest.py
 |----------|-----------|------|
 | Section 1: 시계열 기초 | `Section1.Financial Time Series Analysis/` | ✅ 제공 중 |
 | Section 2: 전략 설계 | `Section2.Advanced Investment Strategy Design/` | ✅ 제공 중 |
-| Section 3: 프로덕션 시스템 | `Section3.Production Investment Strategy/` | 🚀 라이브 |
-| Section 4: 고급 시계열 모델 | `Section4.Advanced Time Series Models/` | 🚧 준비 중 |
-| Section 5: 팩터 모델 | `Section5.Factor-Based Asset Pricing Models/` | 🚧 준비 중 |
+| Section 3: 프로덕션 시스템 | `Section3.Production Investment Strategy/` | ✅ 제공 중 🚀 |
+| Section 4: 고급 시계열 모델 | `Section4.Advanced Time Series Models/` | ✅ 제공 중 |
+| Section 5: 팩터 모델 | `Section5.Factor-Based Asset Pricing Models/` | ✅ 제공 중 |
+| Appendix: 금융수학 이론 | `Appendix/` | ✅ 제공 중 |
 
 ## 🤝 기여하기
 

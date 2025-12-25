@@ -14,7 +14,7 @@ A comprehensive open-source project for mastering financial time series analysis
 
 👉 [Enroll in the Course](https://www.udemy.com/course/mastering-financial-time-series-analysis-with-python/?referralCode=BA6CA9A3E5406E41359E&couponCode=KRLETSLEARNNOW)
 
-- **Section 1 & 2**: Course materials are fully uploaded and available
+- **All Sections**: Course materials are fully uploaded and available
 - **Section 3**: Live production system with real-time trading records
 
 ## 📊 Live Trading Records
@@ -93,7 +93,7 @@ Practical implementation of trading strategies:
 
 ### Section 3: Production Investment Strategy
 
-**Status**: 🚀 **Live Production System**
+**Status**: ✅ Course Available 🚀 **Live Production System**
 
 A production-level trading system currently operating with real capital:
 
@@ -139,9 +139,9 @@ A production-level trading system currently operating with real capital:
 
 ### Section 4: Advanced Time Series Models
 
-**Status**: 🚧 In preparation
+**Status**: ✅ Course Available
 
-[\📖 Detailed Documentation](Section4.Advanced%20Time%20Series%20Models/README.md)
+[📖 Detailed Documentation](Section4.Advanced%20Time%20Series%20Models/README.md)
 
 Modern statistical and ML techniques for challenging temporal structures:
 
@@ -155,7 +155,7 @@ Modern statistical and ML techniques for challenging temporal structures:
 
 ### Section 5: Factor-Based Asset Pricing Models
 
-**Status**: 🚧 In preparation
+**Status**: ✅ Course Available
 
 [📖 Detailed Documentation](Section5.Factor-Based%20Asset%20Pricing%20Models/README.md)
 
@@ -181,6 +181,40 @@ Theoretical foundations and practical applications of factor-based asset pricing
   - Walk-forward validation
   - Transaction cost analysis
   - Performance evaluation (Sharpe, Alpha, etc.)
+
+### Appendix: Financial Mathematics Theory and Practical Examples
+
+**Status**: ✅ Available
+
+[📖 Detailed Documentation](Appendix/README.md)
+
+A comprehensive guide to all financial mathematics theory used in quant trading, implemented with **easy-to-understand example code**:
+
+- **Chapter 1: Linear Algebra**
+  - Portfolio optimization
+  - PCA-based factor analysis
+  - Multi-factor regression (Fama-French)
+  - Matrix operations in VAR & VECM models
+
+- **Chapter 2: Analysis & Calculus**
+  - Gradient descent visualization
+  - Understanding backpropagation algorithm
+  - Calculus principles in GARCH models
+  - Wavelet Transform
+  - Ito's Lemma
+  - Bayesian Optimization
+
+- **Chapter 3: Probability & Time Series Statistics**
+  - Stationarity testing and understanding
+  - Probabilistic foundations of ARIMA models
+  - Cointegration and pair trading
+  - Dependence analysis using Copula
+  - Monte Carlo simulation
+
+- **Chapter 4: Bayesian Statistics & Filtering**
+  - Bayesian inference examples
+  - Understanding Kalman Filter
+  - State-space models
 
 ## 🚀 Quick Start
 
@@ -227,6 +261,26 @@ python state_space_model.py
 ```bash
 cd "Section5.Factor-Based Asset Pricing Models/Chapter4.Practical Application and Backtesting"
 python factor_portfolio_backtest.py
+```
+
+**Appendix - Financial Mathematics:**
+```bash
+# Install dependencies from project root (skip if already installed)
+pip install -r requirements.txt
+
+cd Appendix
+
+# Chapter 1: Linear Algebra
+python Chapter1_Linear_Algebra/portfolio_optimization.py
+
+# Chapter 2: Calculus
+python Chapter2_Calculus/gradient_descent_demo.py
+
+# Chapter 3: Probability & Statistics
+python Chapter3_Probability_Statistics/stationarity_analysis.py
+
+# Chapter 4: Bayesian
+python Chapter4_Bayesian_Filtering/kalman_filter_demo.py
 ```
 
 Results will be saved in the `results/` folder within each section.
@@ -295,9 +349,10 @@ This project implements state-of-the-art financial econometrics techniques:
 |---------------|-------------------|--------|
 | Section 1: Time Series Fundamentals | `Section1.Financial Time Series Analysis/` | ✅ Available |
 | Section 2: Strategy Design | `Section2.Advanced Investment Strategy Design/` | ✅ Available |
-| Section 3: Production System | `Section3.Production Investment Strategy/` | 🚀 Live |
-| Section 4: Advanced Time Series Models | `Section4.Advanced Time Series Models/` | 🚧 In preparation |
-| Section 5: Factor Models | `Section5.Factor-Based Asset Pricing Models/` | 🚧 In preparation |
+| Section 3: Production System | `Section3.Production Investment Strategy/` | ✅ Available 🚀 |
+| Section 4: Advanced Time Series Models | `Section4.Advanced Time Series Models/` | ✅ Available |
+| Section 5: Factor Models | `Section5.Factor-Based Asset Pricing Models/` | ✅ Available |
+| Appendix: Financial Mathematics | `Appendix/` | ✅ Available |
 
 ## 🤝 Contributing
 
