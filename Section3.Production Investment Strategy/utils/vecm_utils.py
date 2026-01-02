@@ -132,3 +132,109 @@ def get_alpha_value(model_fitted, target_index: str, history: pd.DataFrame,
         print(f"Warning: Error extracting alpha value: {e}")
         return 0.0
 
+
+def get_vecm_confidence(model_fitted, target_index: str, history: pd.DataFrame, 
+                       lower_bound: float, upper_bound: float, predicted_mean: float) -> float:
+    """
+    Calculate confidence of VECM model.
+    
+    [Important] Prediction interval consistency: lower_bound and upper_bound must come from the same forecast period (forecast_steps)
+    
+    Instead of R², combines multiple indicators to measure confidence:
+    1. Prediction interval width: (upper - lower) / predicted_mean (smaller = higher confidence)
+    2. Residual standard deviation: smaller = higher confidence (past fit indicator)
+    3. Alpha absolute value: larger = faster convergence speed (cointegration relation strength)
+    
+    Parameters:
+    -----------
+    model_fitted : VECMResults
+        Fitted VECM model
+    target_index : str
+        Target variable name
+    history : pd.DataFrame
+        Historical data
+    lower_bound : float
+        Prediction lower bound
+    upper_bound : float
+        Prediction upper bound
+    predicted_mean : float
+        Predicted mean value
+    
+    Returns:
+    --------
+    float
+        Confidence score (0-1 range, higher = higher confidence)
+    """
+    try:
+        target_idx = history.columns.get_loc(target_index)
+        
+        # 1. Prediction interval width (smaller = higher confidence)
+        if predicted_mean > 0:
+            interval_width = (upper_bound - lower_bound) / predicted_mean
+        else:
+            interval_width = 1.0  # If predicted value <= 0, consider worst case
+        
+        # 2. Residual standard deviation (smaller = higher confidence)
+        residuals = model_fitted.resid
+        if residuals.ndim == 2:
+            target_residuals = residuals[:, target_idx]
+        else:
+            target_residuals = residuals
+        
+        residual_std = np.std(target_residuals)
+        # Normalize residual std relative to predicted value
+        if predicted_mean > 0:
+            normalized_residual_std = residual_std / predicted_mean
+        else:
+            normalized_residual_std = 1.0
+        
+        # 3. Alpha absolute value (larger = faster convergence speed, higher confidence)
+        alpha = model_fitted.alpha
+        if alpha.ndim == 2:
+            target_alpha = alpha[target_idx, :]
+            # Mean of absolute values of negative alphas (only converging ones)
+            negative_alphas = target_alpha[target_alpha < 0]
+            if len(negative_alphas) > 0:
+                alpha_abs_mean = np.mean(np.abs(negative_alphas))
+            else:
+                alpha_abs_mean = 0.0
+        else:
+            if target_idx < len(alpha):
+                alpha_val = alpha[target_idx]
+                alpha_abs_mean = abs(alpha_val) if alpha_val < 0 else 0.0
+            else:
+                alpha_abs_mean = 0.0
+        
+        # Normalize each indicator to 0-1 range and combine
+        # Prediction interval width: Map to wider range to increase sensitivity
+        # Map 0-1.0 range to 1-0 (if >=1.0 then 0)
+        confidence_interval = max(0, 1 - min(interval_width / 1.0, 1.0))
+        
+        # Residual std: Map to wider range
+        # Map 0-0.5 range to 1-0
+        confidence_residual = max(0, 1 - min(normalized_residual_std / 0.5, 1.0))
+        
+        # Alpha: Map to wider range
+        # Map 0-0.05 range to 0-1 (if >=0.05 then 1)
+        confidence_alpha = min(alpha_abs_mean / 0.05, 1.0)
+        
+        # Combine with weighted average (prediction interval most important)
+        confidence = (0.5 * confidence_interval + 
+                     0.3 * confidence_residual + 
+                     0.2 * confidence_alpha)
+        
+        # Expand confidence to wider range (map 0-1 to 0.2-0.9 for larger differences)
+        # This makes position sizes vary more significantly even when confidence is 0.5-0.8
+        confidence_expanded = 0.2 + (confidence * 0.7)  # Expand 0-1 to 0.2-0.9
+        
+        return float(np.clip(confidence_expanded, 0.0, 1.0))
+        
+    except Exception as e:
+        if not hasattr(get_vecm_confidence, '_error_count'):
+            get_vecm_confidence._error_count = 0
+        if get_vecm_confidence._error_count < 3:
+            print(f"Warning: Error calculating VECM confidence: {e}")
+            get_vecm_confidence._error_count += 1
+        return 0.5  # Default value
+
+
