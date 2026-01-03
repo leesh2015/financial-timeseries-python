@@ -97,18 +97,21 @@ Python을 활용한 금융 시계열 분석, 알고리즘 트레이딩 전략, �
 
 실제 자금으로 운영 중인 프로덕션 수준의 트레이딩 시스템:
 
-- **VECM-EGARCH 하이브리드 모델**
+- **Chapter 1: VECM-EGARCH 하이브리드 모델**
   - 공적분 관계를 위한 벡터 오차수정 모델
   - 변동성 모델링을 위한 지수 GARCH
-  - 모델 신뢰도 기반 동적 포지션 크기 조절
+  - 모델 신뢰도 기반 동격 포지션 크기 조절
+  - 주요 기능:
+    - ✅ 정보 누수 방지 (워킹 포워드 검증)
+    - ✅ ECT alpha 기반 동적 재최적화
+    - ✅ 신뢰도 기반 포지션 크기 조절 (0.2~0.8 비율 범위)
+    - ✅ 매수(4일) 및 매도(7일)를 위한 별도 예측 기간
 
-- **주요 기능**:
-  - ✅ 정보 누수 방지 (워킹 포워드 검증)
-  - ✅ ECT alpha 기반 동적 재최적화
-  - ✅ 신뢰도 기반 포지션 크기 조절 (0.2~0.8 비율 범위)
-  - ✅ 매수(4일) 및 매도(7일)를 위한 별도 예측 기간
-  - ✅ 실시간 증권사 API 연동
-  - ✅ 자동 일일 거래 기록 업로드
+- **Chapter 2: 강화학습(RL) 투자 전략**
+  - VECM-GARCH 하이브리드와 RL 에이전트 결합
+  - 시장 레짐 감지 (Bull, Bear, Sideways, High Vol)
+  - 동적 비중 조절을 위한 Simple Policy RL 에이전트
+  - 적응형 신뢰도 임계값 적용
 
 - **수학적 모델**:
 
@@ -247,8 +250,13 @@ python dynamic_simulation.py
 
 **Section 3 - 프로덕션 시뮬레이션:**
 ```bash
-cd "Section3.Production Investment Strategy"
-python production_simulation.py
+# Chapter 1: VECM-EGARCH 하이브리드 
+cd "Section3.Production Investment Strategy/Chapter1.VECM-EGARCH Hybrid"
+python production_simulation_.py
+
+# Chapter 2: 강화학습 (Reinforcement Learning)
+cd "Section3.Production Investment Strategy/Chapter2.Reinforcement Learning"
+python dynamic_simulation_rl.py
 ```
 
 **Section 4 - 고급 시계열 모델:**

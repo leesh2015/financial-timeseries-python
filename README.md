@@ -97,18 +97,21 @@ Practical implementation of trading strategies:
 
 A production-level trading system currently operating with real capital:
 
-- **VECM-EGARCH Hybrid Model**
+- **Chapter 1: VECM-EGARCH Hybrid Model**
   - Vector Error Correction Model for cointegration relationships
   - Exponential GARCH for volatility modeling
   - Dynamic position sizing based on model confidence
+  - Key Features:
+    - ✅ Information leakage prevention (walking forward validation)
+    - ✅ Dynamic re-optimization based on ECT alpha
+    - ✅ Confidence-based position sizing (0.2~0.8 fraction range)
+    - ✅ Separate forecast horizons for buy (4 days) and sell (7 days)
 
-- **Key Features**:
-  - ✅ Information leakage prevention (walking forward validation)
-  - ✅ Dynamic re-optimization based on ECT alpha
-  - ✅ Confidence-based position sizing (0.2~0.8 fraction range)
-  - ✅ Separate forecast horizons for buy (4 days) and sell (7 days)
-  - ✅ Real-time broker API integration
-  - ✅ Automated daily trade record uploads
+- **Chapter 2: Reinforcement Learning (RL) Strategy**
+  - VECM-GARCH Hybrid combined with RL Agent
+  - Market Regime Detection (Bull, Bear, Sideways, High Vol)
+  - Simple Policy RL agent for dynamic position blending
+  - Adaptive confidence thresholds
 
 - **Mathematical Models**:
 
@@ -247,8 +250,13 @@ python dynamic_simulation.py
 
 **Section 3 - Production Simulation:**
 ```bash
-cd "Section3.Production Investment Strategy"
-python production_simulation.py
+# Chapter 1: VECM-EGARCH Hybrid
+cd "Section3.Production Investment Strategy/Chapter1.VECM-EGARCH Hybrid"
+python production_simulation_.py
+
+# Chapter 2: Reinforcement Learning
+cd "Section3.Production Investment Strategy/Chapter2.Reinforcement Learning"
+python dynamic_simulation_rl.py
 ```
 
 **Section 4 - Advanced Time Series Models:**
