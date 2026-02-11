@@ -23,7 +23,7 @@ Python을 활용한 금융 시계열 분석, 알고리즘 트레이딩 전략, �
 
 이 프로젝트는 **실제 자금으로 활발히 거래 중인 프로덕션 트레이딩 시스템**을 포함합니다. 일일 거래 기록은 자동으로 다음 사이트에 업로드됩니다:
 
-🌐 **[거래 기록 대시보드](https://leenaissance.com/trading-history)**
+🌐 **[거래 기록 대시보드](https://leenaissance.com/competition)**
 
 시스템은 증권사 API 연동을 통한 자동매매를 사용하며, 모든 거래는 웹사이트에 투명하게 표시됩니다.
 
@@ -339,7 +339,7 @@ python Chapter4_Bayesian_Filtering/kalman_filter_demo.py
 - 연환산 수익률 (Annualized Returns)
 - 바이앤홀드 비교 (Buy-and-Hold Comparison)
 
-실시간 지표 보기: [거래 기록 대시보드](https://leenaissance.com/trading-history)
+실시간 지표 보기: [거래 기록 대시보드](https://leenaissance.com/competition)
 
 ## 🔬 연구 및 방법론
 
@@ -384,7 +384,7 @@ python Chapter4_Bayesian_Filtering/kalman_filter_demo.py
 ## 🔗 링크
 
 - **Udemy 강의**: [Mastering Financial Time Series Analysis with Python](https://www.udemy.com/course/mastering-financial-time-series-analysis-with-python/?referralCode=BA6CA9A3E5406E41359E&couponCode=KRLETSLEARNNOW)
-- **거래 대시보드**: [leenaissance.com/trading-history](https://leenaissance.com/trading-history)
+- **거래 대시보드**: [leenaissance.com/competition](https://leenaissance.com/competition)
 - **GitHub Discussions**: [커뮤니티 참여하기](https://github.com/leesh2015/financial-timeseries-python/discussions)
 
 ## 📧 문의

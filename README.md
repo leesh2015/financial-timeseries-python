@@ -23,7 +23,7 @@ A comprehensive open-source project for mastering financial time series analysis
 
 This project includes a **production trading system** that is actively trading with real capital. Daily trading records are automatically uploaded to:
 
-🌐 **[Trading History Dashboard](https://leenaissance.com/trading-history)**
+🌐 **[Trading History Dashboard](https://leenaissance.com/competition)**
 
 The system uses broker API integration for automated trading, and all trades are transparently displayed on the website.
 
@@ -339,7 +339,7 @@ The production system tracks comprehensive performance metrics:
 - Annualized Returns
 - Buy-and-Hold Comparison
 
-View live metrics at: [Trading History Dashboard](https://leenaissance.com/trading-history)
+View live metrics at: [Trading History Dashboard](https://leenaissance.com/competition)
 
 ## 🔬 Research & Methodology
 
@@ -384,7 +384,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🔗 Links
 
 - **Udemy Course**: [Mastering Financial Time Series Analysis with Python](https://www.udemy.com/course/mastering-financial-time-series-analysis-with-python/?referralCode=BA6CA9A3E5406E41359E&couponCode=KRLETSLEARNNOW)
-- **Trading Dashboard**: [leenaissance.com/trading-history](https://leenaissance.com/trading-history)
+- **Trading Dashboard**: [leenaissance.com/competition](https://leenaissance.com/competition)
 - **GitHub Discussions**: [Join the Community](https://github.com/leesh2015/financial-timeseries-python/discussions)
 
 ## 📧 Contact
