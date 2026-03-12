@@ -1,6 +1,6 @@
 """
-Phase 7: Reinforcement Learning Agent
-Simple Policy-based RL Agent.
+Phase 7: 강화학습 에이전트
+Simple Policy 기반 RL 에이전트
 """
 
 import numpy as np
@@ -9,8 +9,8 @@ from typing import Optional, Tuple
 
 class SimpleRLPolicy:
     """
-    Simple Policy (VECM confidence-based).
-    Decisions are based on VECM confidence.
+    간단한 정책 (VECM 신뢰도 기반)
+    VECM 신뢰도 기반 결정
     """
     
     def __init__(self,
@@ -23,15 +23,15 @@ class SimpleRLPolicy:
         Parameters:
         -----------
         buy_confidence_threshold : float
-            Buy confidence threshold (default: 0.7).
+            매수 신뢰도 임계값 (기본값: 0.7)
         sell_confidence_threshold : float
-            Sell confidence threshold (default: 0.5).
+            매도 신뢰도 임계값 (기본값: 0.5)
         max_position_ratio : float
-            Maximum position ratio (default: 0.5).
+            최대 포지션 비율 (기본값: 0.5)
         min_position_ratio_for_sell : float
-            Minimum position ratio for selling (default: 0.3).
+            매도 최소 포지션 비율 (기본값: 0.3)
         max_position_size : float
-            Maximum position size (default: 0.8).
+            최대 포지션 크기 (기본값: 0.8)
         """
         self.buy_confidence_threshold = buy_confidence_threshold
         self.sell_confidence_threshold = sell_confidence_threshold
@@ -41,25 +41,39 @@ class SimpleRLPolicy:
     
     def predict(self, observation: np.ndarray, deterministic: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """
-        Simple policy: VECM confidence-based.
+        간단한 정책: VECM 신뢰도 기반 + 매크로 모멘텀 하드 필터(False Positive 방어)
         
-        observation: [vecm_pred, vecm_confidence, garch_vol, regime, position_ratio, capital_ratio]
+        observation: [vecm_pred, vecm_confidence, garch_vol, regime, position_ratio, capital_ratio, cl_mom, zb_mom]
         """
-        vecm_confidence = observation[1]  # Confidence
-        position_ratio = observation[4]  # Current position ratio
+        vecm_confidence = observation[1]  # 신뢰도
+        position_ratio = observation[4]  # 현재 포지션 비율
         
-        # Optimized buy condition
+        # [추가] 매크로 지표 파싱 (구버전 호환성을 위해 배열 길이 체크)
+        if len(observation) >= 8:
+            cl_momentum = observation[6]
+            zb_momentum = observation[7]
+            
+            # [거짓 양성 방어 필터] 
+            # 원유가 20일 기준 5% 이상 폭등했다면(인플레이션 발작), VECM 신뢰도를 강제로 절반으로 깎아 매수를 억제한다.
+            if cl_momentum > 0.05:
+                # 국채 하락(금리 인상)까지 겹치면 더 페널티
+                if zb_momentum < -0.01:
+                    vecm_confidence *= 0.3
+                else:
+                    vecm_confidence *= 0.5
+        
+        # 최적화된 매수 조건
         if vecm_confidence > self.buy_confidence_threshold and position_ratio < self.max_position_ratio:
-            # Buy signal
+            # 매수 신호
             position_size = min(self.max_position_size, vecm_confidence)
             signal = 1.0
-        # Optimized sell condition
+        # 최적화된 매도 조건
         elif vecm_confidence < self.sell_confidence_threshold and position_ratio > self.min_position_ratio_for_sell:
-            # Sell signal
+            # 매도 신호
             position_size = position_ratio
             signal = -1.0
         else:
-            # Hold
+            # 보유
             position_size = position_ratio
             signal = 0.0
         
@@ -69,7 +83,7 @@ class SimpleRLPolicy:
 
 class VECMRLAgent:
     """
-    VECM-based RL Trading Agent (using Simple Policy only).
+    VECM 기반 RL 거래 에이전트 (Simple Policy만 사용)
     """
     
     def __init__(self, 
@@ -78,9 +92,9 @@ class VECMRLAgent:
         Parameters:
         -----------
         simple_policy_params : dict, optional
-            Simple Policy parameters.
+            Simple Policy 파라미터
         """
-        # Simple Policy parameters (optimizable)
+        # Simple Policy 파라미터 (최적화 가능)
         if simple_policy_params is None:
             self.simple_policy_params = {
                 'buy_confidence_threshold': 0.7,
@@ -97,14 +111,14 @@ class VECMRLAgent:
     
     def predict(self, observation: np.ndarray, deterministic: bool = True) -> np.ndarray:
         """
-        Predict action.
+        액션 예측
         
         Parameters:
         -----------
         observation : np.ndarray
-            Current state observation.
+            현재 상태 관찰값
         deterministic : bool
-            Whether the prediction is deterministic (Simple Policy is always deterministic).
+            결정적 예측 여부 (Simple Policy는 항상 결정적)
         
         Returns:
         --------
