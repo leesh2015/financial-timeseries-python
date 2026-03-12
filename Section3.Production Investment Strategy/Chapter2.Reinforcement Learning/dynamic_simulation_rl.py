@@ -539,23 +539,23 @@ CONFIDENCE_FRACTION_CONFIG_BASE = {
     'threshold_percentile': 10  # 하위 10% 백분위수 사용 (threshold_method='percentile'일 때)
 }
 
-# 레짐별 fraction 범위 설정 (베이지안 최적화 적용 결과 - 트레일링 스탑 미사용 버전)
+# 레짐별 fraction 범위 설정 (Optuna 최적화 결과 - 1단계 Soft Penalty 적용)
 REGIME_FRACTION_CONFIG = {
     'bull': {
-        'min_fraction': 0.72,  # 강세장에서의 최적 노출도
-        'max_fraction': 0.81    
+        'min_fraction': 0.68,  # 최적화: 0.679
+        'max_fraction': 0.97    # 최적화: 0.968
     },
     'bear': {
-        'min_fraction': 0.36,  
-        'max_fraction': 0.60
+        'min_fraction': 0.48,  # 최적화: 0.479
+        'max_fraction': 0.77    # 최적화: 0.770
     },
     'sideways': {
-        'min_fraction': 0.22,  
-        'max_fraction': 0.58
+        'min_fraction': 0.43,  # 최적화: 0.426
+        'max_fraction': 0.86    # 최적화: 0.860
     },
     'high_vol': {
-        'min_fraction': 0.10,  
-        'max_fraction': 0.70
+        'min_fraction': 0.47,  # 최적화: 0.470
+        'max_fraction': 0.70    # 최적화: 0.697
     }
 }
 

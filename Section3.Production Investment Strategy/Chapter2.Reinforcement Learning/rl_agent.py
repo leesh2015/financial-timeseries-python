@@ -53,14 +53,10 @@ class SimpleRLPolicy:
             cl_momentum = observation[6]
             zb_momentum = observation[7]
             
-            # [거짓 양성 방어 필터] 
-            # 원유가 20일 기준 5% 이상 폭등했다면(인플레이션 발작), VECM 신뢰도를 강제로 절반으로 깎아 매수를 억제한다.
-            if cl_momentum > 0.05:
-                # 국채 하락(금리 인상)까지 겹치면 더 페널티
-                if zb_momentum < -0.01:
-                    vecm_confidence *= 0.3
-                else:
-                    vecm_confidence *= 0.5
+            # [수정] 하드코딩된 페널티 제거 (Soft Penalty로 전환)
+            # 기존: 유가가 5% 이상 폭등 시 신뢰도를 강제로 50% 삭감
+            # 변경: RL 에이전트가 상태(State) 값으로 유가 모멘텀을 직접 보고 판단하도록 수정
+            pass
         
         # 최적화된 매수 조건
         if vecm_confidence > self.buy_confidence_threshold and position_ratio < self.max_position_ratio:
