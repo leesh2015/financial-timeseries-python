@@ -28,7 +28,7 @@ except ImportError as e:
 # RL System Integration (Production Policy Only)
 USE_RL_AGENT = True  # Set to False to disable RL
 # RL_BLEND_FACTOR is read from env or defaults to 0.6
-RL_BLEND_FACTOR = float(os.environ.get('RL_BLEND_FACTOR', '0.6')) 
+RL_BLEND_FACTOR = float(os.environ.get('RL_BLEND_FACTOR', '0.9487')) 
 
 try:
     from rl_agent import VECMRLAgent
@@ -77,7 +77,7 @@ test_data = df['Open'].iloc[split_index:]
 ohlc_data = df.iloc[split_index:]
 
 # Optimal Parameter Estimation
-lag_order = select_order(train_data, maxlags=15, deterministic="colo")
+lag_order = select_order(train_data, maxlags=15, deterministic="cili")
 time_lag = lag_order.aic
 print(f"time_lag: {time_lag}")
 
@@ -87,7 +87,7 @@ coint_rank_opt = coint_rank_test.rank
 k_ar_diff_opt = time_lag
 
 # Fit VECM Model
-model = VECM(train_data, k_ar_diff=k_ar_diff_opt, coint_rank=coint_rank_opt, deterministic="colo")
+model = VECM(train_data, k_ar_diff=k_ar_diff_opt, coint_rank=coint_rank_opt, deterministic="cili")
 model_fitted = model.fit()
 print(f"k_ar_diff_opt: {k_ar_diff_opt}")
 print(f"coint_rank_opt: {coint_rank_opt}")
@@ -600,12 +600,13 @@ fraction_history = [fraction]
 
 # --- Main Simulation Loop ---
 for t in range(len(test_data)):
+    current_action = 'HOLD'
     # Update sliding window history
     history = pd.concat([history, test_data.iloc[[t]]])
     should_log = (t % 100 == 0)
     
     # Fit VECM with updated history
-    model = VECM(history, k_ar_diff=k_ar_diff_opt, coint_rank=coint_rank_opt, deterministic="colo")
+    model = VECM(history, k_ar_diff=k_ar_diff_opt, coint_rank=coint_rank_opt, deterministic="cili")
     model_fitted = model.fit()
     
     # --- 1. GARCH Modeling for Hybrid Prediction ---
@@ -749,11 +750,11 @@ for t in range(len(test_data)):
     current_alpha = get_alpha_value(model_fitted, target_index, history, method=ALPHA_METHOD)
     if current_alpha > 0:
         if should_log: print(f"\n[Re-optimization] Alpha lost convergence: {current_alpha:.6f}. Skipping trade.")
-        lag_new = select_order(history, maxlags=15, deterministic="colo")
+        lag_new = select_order(history, maxlags=15, deterministic="cili")
         k_ar_diff_opt = lag_new.aic
         coint_new = select_coint_rank(history, det_order=1, k_ar_diff=k_ar_diff_opt, method='trace')
         coint_rank_opt = coint_new.rank
-        model = VECM(history, k_ar_diff=k_ar_diff_opt, coint_rank=coint_rank_opt, deterministic="colo")
+        model = VECM(history, k_ar_diff=k_ar_diff_opt, coint_rank=coint_rank_opt, deterministic="cili")
         model_fitted = model.fit()
         continue 
 
@@ -789,6 +790,7 @@ for t in range(len(test_data)):
             average_price = total_purchase_val / total_shares
             capital -= (buy_value + commission)
             
+            current_action = 'BUY'
             if should_log:
                 print(f"  [Trade] Buying {shares_to_buy} shares at {lower_mean:.2f} (Limit Order filled)")
 
@@ -810,20 +812,23 @@ for t in range(len(test_data)):
                 cumulative_commission += comm
                 capital += sell_val - comm
                 print(f"!!! PROFIT PROTECTION !!! Sold {total_shares} at {sell_p:.2f} (Return: {current_ret:.2%})")
+                current_action = 'SELL_PROT'
                 total_shares, average_price, position, peak_price = 0, 0, None, 0
 
     # 3. Sell Execution (Limit Order at upper_mean)
     should_sell = (upper_price > upper_mean)
     
-    # Bull Regime Persistence: Only sell if model predicts significant reversal
+    # Bull Regime Persistence: Adaptive Reversal Threshold (Golden Ratio: 0.5007 * Vol)
     if is_bull_regime:
         expected_sell_ret = (hybrid_yhat_sell - actual_price) / actual_price
-        should_sell = should_sell and (expected_sell_ret < -0.01)
+        # Detect if predicted reversal is stronger than 0.5x current volatility
+        adaptive_reversal_threshold = -(garch_volatility * 0.5007)
+        should_sell = should_sell and (expected_sell_ret < adaptive_reversal_threshold)
 
     if position == 'long' and should_sell and total_shares >= 1:
         if is_bull_regime:
-            # Partial profit taking in bull regime to ride trend (capped at 20%)
-            sell_ratio = min(fraction_sell, 0.2)
+            # Optimized profit taking in bull regime to maximize capital efficiency
+            sell_ratio = 0.4414
             shares_to_sell_float = total_shares * sell_ratio
         else:
             # Full logic weighting in other regimes
@@ -838,6 +843,7 @@ for t in range(len(test_data)):
             total_shares -= shares_to_sell
             capital += sell_value - commission
             
+            current_action = 'SELL'
             if should_log:
                 print(f"  [Trade] Selling {shares_to_sell} shares at {upper_mean:.2f} (Target Reached)")
             if total_shares <= 0:
@@ -857,9 +863,18 @@ for t in range(len(test_data)):
 
     if should_log:
         date_str_loop = test_data.index[t].strftime('%Y-%m-%d')
-        print(f"date: {date_str_loop} | Conf(Buy): {confidence_buy:.4f} | Conf(Sell): {confidence_sell:.4f} | Frac(Buy): {fraction_buy:.3f} | Frac(Sell): {fraction_sell:.3f} | "
-              f"hybrid_yhat_buy: {hybrid_yhat_buy:7.2f} | actual_price: {actual_price:7.2f} | total_assets: {total_assets:10.2f} | position: {str(position):>6} | "
-              f"unrealized: {unrealized_pnl:8.2f} | commission: {cumulative_commission:8.2f}")
+        # Enhanced log for buy/sell edge calculation
+        buy_edge = (hybrid_yhat_buy - actual_price) / actual_price if actual_price > 0 else 0
+        sell_edge = (hybrid_yhat_sell - actual_price) / actual_price if actual_price > 0 else 0
+        
+        print(f"date: {date_str_loop} | Conf(B/S): {confidence_buy:.3f}/{confidence_sell:.3f} | Edge(B/S): {buy_edge:+.2%}/{sell_edge:+.2%} | "
+              f"Yhat(B): {hybrid_yhat_buy:7.2f} | Prc: {actual_price:7.2f} | Assets: {total_assets:10.2f} | Pos: {str(position):>6} | "
+              f"Regime: {current_regime:<8}")
+        
+        # Log buy skip due to bearish outlook (for analysis)
+        if hybrid_yhat_buy <= actual_price and position != 'long' and capital > 0:
+            if t % 50 == 0: # Limit frequency so it does not print too often
+                print(f"  [Info] Buy skipped: Bearish forecast (Yhat {hybrid_yhat_buy:.2f} <= Actual {actual_price:.2f})")
 
     # Track High-Water Mark for Risk Management
     if position == 'long':
@@ -869,13 +884,15 @@ for t in range(len(test_data)):
 
     trade_history.append({
         'date': test_data.index[t].strftime('%Y-%m-%d'),
+        'action': current_action,
         'confidence_buy': confidence_buy,
         'confidence_sell': confidence_sell,
         'fraction_buy': fraction_buy,
         'fraction_sell': fraction_sell,
         'hybrid_yhat_buy': hybrid_yhat_buy,
         'hybrid_yhat_sell': hybrid_yhat_sell,
-        'actual_price': close_price,
+        'open_price': actual_price,   # Signal evaluation reference price (open)
+        'close_price': close_price,   # Result evaluation price (close)
         'capital': capital,
         'total_shares': total_shares,
         'total_assets': total_assets,
@@ -886,11 +903,14 @@ for t in range(len(test_data)):
 
 # --- Final Performance Metrics & Visualization ---
 trade_history_df = pd.DataFrame(trade_history)
-results_dir = 'results'
+
+# Set the results folder path relative to the directory containing this source file
+script_dir = os.path.dirname(os.path.abspath(__file__))
+results_dir = os.path.join(script_dir, 'results')
 os.makedirs(results_dir, exist_ok=True)
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-trade_history_path = os.path.join(results_dir, f'trade_history_{timestamp}.xlsx')
-trade_history_df.to_excel(trade_history_path, index=False)
+trade_history_path = os.path.join(results_dir, f'trade_history_{timestamp}.csv')
+trade_history_df.to_csv(trade_history_path, index=False, encoding='utf-8-sig')
 print(f"\nTrade history saved to: {trade_history_path}")
 
 # Calculate simulation parameters

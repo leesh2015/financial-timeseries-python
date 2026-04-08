@@ -211,6 +211,7 @@ __marimo__/
 *.xls
 *.xlsm
 *.xlsb
+*.csv
 
 # Trained model artifacts (not needed in repo)
 Section4.Advanced Time Series Models/Chapter4.Deep Learning/models/

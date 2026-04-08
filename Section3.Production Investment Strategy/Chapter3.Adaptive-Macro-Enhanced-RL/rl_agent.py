@@ -59,43 +59,38 @@ class SimpleRLPolicy:
             zb_mom = observation[7] # Treasury Momentum
             
             # Penalties for inflationary (Oil up) and rate-sensitive (ZB down) shocks
-            cl_impact = max(0.0, float(cl_mom)) * 5.6399
-            zb_impact = max(0.0, -float(zb_mom)) * 1.2647
+            cl_impact = max(0.0, float(cl_mom)) * 14.3073
+            zb_impact = max(0.0, -float(zb_mom)) * 6.8425
             macro_penalty = cl_impact + zb_impact
             
             # Detect structural stagflation regimes
-            if cl_mom > 0.0733 and zb_mom < -0.0548:
-                macro_penalty = max(macro_penalty, 0.5632)
+            if cl_mom > 0.1214 and zb_mom < -0.0956:
+                macro_penalty = max(macro_penalty, 0.8118)
                 
             # Error Correction Term (ECT) Alpha Integration
             if len(observation) >= 9:
                 ect_alpha = observation[8]
                 if ect_alpha > 0:
-                    # Divergence Penalty: Price is moving away from equilibrium
-                    macro_penalty += float(ect_alpha) * 4.5832
+                    # Divergence Penalty
+                    macro_penalty += float(ect_alpha) * 8.7660
                 else:
-                    # Convergence Bonus: Price is reverting to equilibrium
-                    ect_bonus = -float(ect_alpha) * 1.3929
+                    # Convergence Bonus
+                    ect_bonus = -float(ect_alpha) * 8.6807
             
-            # Cap the maximum scale of soft penalties to prevent total suppression
-            macro_penalty = min(macro_penalty, 0.3957)
+            # Cap the maximum scale of soft penalties
+            macro_penalty = min(macro_penalty, 0.8252)
             
-        # Apply Risk Adjustments to VECM confidence
-        # Final Confidence = (Raw Confidence * (1 - Penalty)) + Convergence Bonus
         final_confidence = (vecm_confidence * (1.0 - macro_penalty)) + ect_bonus
         final_confidence = np.clip(final_confidence, 0.0, 1.0)
         
         # --- Execution Logic ---
-        # Buy Signal Entry
         if final_confidence > self.buy_confidence_threshold and position_ratio < self.max_position_ratio:
             position_size = min(self.max_position_size, final_confidence)
             signal = 1.0
-        # Sell Signal Exit
         elif vecm_confidence < self.sell_confidence_threshold and position_ratio > self.min_position_ratio_for_sell:
             position_size = position_ratio
             signal = -1.0
         else:
-            # Hold Position
             position_size = position_ratio
             signal = 0.0
         
@@ -116,14 +111,14 @@ class VECMRLAgent:
         simple_policy_params : dict, optional
             Parameters to override the default SimpleRLPolicy settings.
         """
-        # Default optimized parameters
+        # Default optimized parameters (Adaptive Golden Ratio)
         if simple_policy_params is None:
             self.simple_policy_params = {
-                'buy_confidence_threshold': 0.7,
-                'sell_confidence_threshold': 0.5,
-                'max_position_ratio': 0.5,
-                'min_position_ratio_for_sell': 0.3,
-                'max_position_size': 0.8
+                'buy_confidence_threshold': 0.5370,
+                'sell_confidence_threshold': 0.4837,
+                'max_position_ratio': 0.9500,
+                'min_position_ratio_for_sell': 0.2000,
+                'max_position_size': 0.9500
             }
         else:
             self.simple_policy_params = simple_policy_params

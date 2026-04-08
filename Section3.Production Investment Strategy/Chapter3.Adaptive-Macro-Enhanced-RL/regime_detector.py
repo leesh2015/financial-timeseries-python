@@ -49,14 +49,14 @@ class ModelBasedRegimeDetector:
     Based purely on statistical/mathematical models without technical indicators.
     """
     
-    def __init__(self, window: int = 60, hysteresis_threshold: float = 0.15):
+    def __init__(self, window: int = 50, hysteresis_threshold: float = 0.0416):
         """
         Parameters:
         -----------
         window : int
-            Analysis window size (default: 60 days)
+            Analysis window size (default: 50 days)
         hysteresis_threshold : float
-            Hysteresis filter threshold (default: 0.15)
+            Hysteresis filter threshold (default: 0.0416)
         """
         self.window = window
         self.hysteresis_threshold = hysteresis_threshold

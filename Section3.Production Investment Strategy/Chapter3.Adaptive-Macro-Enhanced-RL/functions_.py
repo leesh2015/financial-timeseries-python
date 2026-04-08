@@ -110,3 +110,95 @@ def max_loss(results):
             current_streak = 0
     loss_streaks.append(current_streak)
     return max(loss_streaks) if loss_streaks else 0
+
+def get_alpha_value(model_fitted, target_index, history, method='weighted_mean'):
+    """Extracts the Error Correction Speed (alpha) from the VECM.
+    
+    Alpha indicates convergence or divergence:
+    - Alpha < 0: Convergence toward equilibrium ✓
+    - Alpha > 0: Divergence away from equilibrium ✗
+    - Alpha = 0: No error correction
+    """
+    try:
+        alpha = model_fitted.alpha
+        target_idx = history.columns.get_loc(target_index)
+        
+        if alpha.ndim == 2:
+            if target_idx < alpha.shape[0] and alpha.shape[1] > 0:
+                target_alphas = alpha[target_idx, :]
+                negative_alphas = target_alphas[target_alphas < 0]
+                
+                if len(negative_alphas) > 0:
+                    if method == 'weighted_mean':
+                        abs_negative = np.abs(negative_alphas)
+                        weights = abs_negative / np.sum(abs_negative)
+                        weighted_alpha = np.sum(negative_alphas * weights)
+                        return float(weighted_alpha)
+                    elif method == 'sum_negative':
+                        return float(np.sum(negative_alphas))
+                    elif method == 'min_negative':
+                        return float(np.min(negative_alphas))
+                    else:
+                        abs_negative = np.abs(negative_alphas)
+                        weights = abs_negative / np.sum(abs_negative)
+                        return float(np.sum(negative_alphas * weights))
+                else:
+                    return float(np.mean(target_alphas))
+            else:
+                return 0.0
+        elif alpha.ndim == 1:
+            if target_idx < len(alpha):
+                return float(alpha[target_idx])
+            else:
+                return 0.0
+        else:
+            return 0.0
+    except Exception as e:
+        print(f"Warning: Error extracting alpha value: {e}")
+        return 0.0
+
+def get_vecm_confidence(model_fitted, target_index, history, lower_bound, upper_bound, predicted_mean):
+    """Calculates the confidence level of the VECM model.
+    
+    Combines indicators:
+    1. Interval Width: (upper - lower) / predicted_mean (Smaller is better).
+    2. Residual StdDev: Lower indicates better historical fit.
+    3. Alpha Absolute: Larger negative alpha indicates stronger error correction.
+    """
+    try:
+        target_idx = history.columns.get_loc(target_index)
+        
+        # 1. Interval Width
+        if predicted_mean > 0:
+            interval_width = (upper_bound - lower_bound) / predicted_mean
+        else:
+            interval_width = 1.0
+        
+        # 2. Residual Standard Deviation
+        residuals = model_fitted.resid
+        if residuals.ndim == 2:
+            target_residuals = residuals[:, target_idx]
+        else:
+            target_residuals = residuals
+        
+        residual_std = np.std(target_residuals)
+        if predicted_mean > 0:
+            normalized_residual_std = residual_std / predicted_mean
+        else:
+            normalized_residual_std = 1.0
+        
+        # 3. Absolute Alpha
+        alpha_val = get_alpha_value(model_fitted, target_index, history)
+        abs_alpha = abs(alpha_val) if alpha_val < 0 else 0.0
+        
+        # Simple weighted confidence score
+        # Lower width and lower residual std = higher confidence
+        # Higher absolute negative alpha = higher confidence
+        raw_score = (1.0 / (1.0 + interval_width)) * 0.4 + \
+                    (1.0 / (1.0 + normalized_residual_std)) * 0.4 + \
+                    (min(1.0, abs_alpha * 10.0)) * 0.2
+        
+        return float(np.clip(raw_score, 0.1, 0.95))
+    except Exception as e:
+        print(f"Warning: Error calculating VECM confidence: {e}")
+        return 0.5
