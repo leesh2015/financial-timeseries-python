@@ -14,11 +14,24 @@ from matplotlib.patches import Patch
 
 # Import local modules
 from functions_ import find_garch, max_drawdown, calculate_mdd_details, max_loss
+from trading_utils import (
+    get_alpha_value, 
+    get_vecm_confidence, 
+    calculate_adaptive_threshold, 
+    normalize_confidence_to_fraction
+)
+
+try:
+    from config import get_config
+    SYSTEM_CONFIG = get_config()
+except ImportError:
+    print("Warning: config.py not found. Using defaults.")
+    SYSTEM_CONFIG = {}
 
 # Regime Detection System Integration
 try:
     from regime_detector import ModelBasedRegimeDetector
-    USE_REGIME_DETECTION = True
+    USE_REGIME_DETECTION = SYSTEM_CONFIG.get('use_regime_detection', True)
 except ImportError as e:
     print(f"Warning: Could not import regime detector: {e}")
     print(f"  Make sure 'regime_detector.py' is in the same directory.")
@@ -26,9 +39,9 @@ except ImportError as e:
     ModelBasedRegimeDetector = None
 
 # RL System Integration (Production Policy Only)
-USE_RL_AGENT = True  # Set to False to disable RL
+USE_RL_AGENT = SYSTEM_CONFIG.get('use_rl_agent', True)  # Set to False to disable RL
 # RL_BLEND_FACTOR is read from env or defaults to 0.6
-RL_BLEND_FACTOR = float(os.environ.get('RL_BLEND_FACTOR', '0.9487')) 
+RL_BLEND_FACTOR = float(os.environ.get('RL_BLEND_FACTOR', str(SYSTEM_CONFIG.get('rl_blend_factor', 0.6)))) 
 
 try:
     from rl_agent import VECMRLAgent
@@ -92,70 +105,7 @@ model_fitted = model.fit()
 print(f"k_ar_diff_opt: {k_ar_diff_opt}")
 print(f"coint_rank_opt: {coint_rank_opt}")
 
-def get_alpha_value(model_fitted, target_index, history, method='weighted_mean'):
-    """Extracts the Error Correction Speed (alpha) from the VECM.
-    
-    Alpha indicates convergence or divergence:
-    - Alpha < 0: Convergence toward equilibrium ✓
-    - Alpha > 0: Divergence away from equilibrium ✗
-    - Alpha = 0: No error correction
-    
-    Parameters:
-    -----------
-    method : str
-        'weighted_mean': Weighted average of absolute negative alphas.
-        'min_negative': The strongest convergence relation.
-        'sum_negative': Sum of all convergence relations.
-    """
-    try:
-        alpha = model_fitted.alpha
-        target_idx = history.columns.get_loc(target_index)
-        
-        if alpha.ndim == 2:
-            # 2D array: (n_vars, n_coint_relations)
-            # Example: (7, 3) = 7 variables, 3 cointegration relations
-            if target_idx < alpha.shape[0] and alpha.shape[1] > 0:
-                # Alpha values for all cointegration relations of the target variable
-                target_alphas = alpha[target_idx, :]
-                
-                # Filter only negative alpha values (converging ones)
-                negative_alphas = target_alphas[target_alphas < 0]
-                
-                if len(negative_alphas) > 0:
-                    if method == 'weighted_mean':
-                        # Theoretically most accurate: Weighted average of all convergence relations by absolute value.
-                        # Larger absolute values indicate stronger convergence -> higher weight.
-                        abs_negative = np.abs(negative_alphas)
-                        weights = abs_negative / np.sum(abs_negative)
-                        weighted_alpha = np.sum(negative_alphas * weights)
-                        return float(weighted_alpha)
-                    elif method == 'sum_negative':
-                        # Sum of all convergence relations (considers all relationships).
-                        return float(np.sum(negative_alphas))
-                    elif method == 'min_negative':
-                        # Most negative alpha (the strongest individual convergence relation).
-                        return float(np.min(negative_alphas))
-                    else:
-                        # Default: weighted_mean
-                        abs_negative = np.abs(negative_alphas)
-                        weights = abs_negative / np.sum(abs_negative)
-                        return float(np.sum(negative_alphas * weights))
-                else:
-                    # If no negative alpha exists, return mean of all alphas (indicates lack of convergence).
-                    return float(np.mean(target_alphas))
-            else:
-                return 0.0
-        elif alpha.ndim == 1:
-            if target_idx < len(alpha):
-                alpha_val = float(alpha[target_idx])
-                return alpha_val
-            else:
-                return 0.0
-        else:
-            return 0.0
-    except Exception as e:
-        print(f"Warning: Error extracting alpha value: {e}")
-        return 0.0
+# (get_alpha_value moved to trading_utils.py)
 
 # Alpha Calculation Configuration
 ALPHA_METHOD = 'weighted_mean'  # Options: 'weighted_mean', 'sum_negative', 'min_negative'
@@ -197,228 +147,11 @@ if initial_alpha >= 0:
     print(f"  ⚠️ This combination may not converge properly. Consider using a different combination.")
 
 # ECT Alpha-based Re-optimization Thresholds
-# Trigger re-optimization if Alpha turns positive or absolute value shifts significantly.
-alpha_change_threshold = 0.5  # Re-optimize if absolute value changes by 50%
+alpha_change_threshold = SYSTEM_CONFIG.get('alpha_change_threshold', 0.5)
 
-def get_vecm_confidence(model_fitted, target_index, history, lower_bound, upper_bound, predicted_mean):
-    """Calculates the confidence level of the VECM model.
-    
-    [Important] Interval Consistency: lower_bound and upper_bound should share the same forecast_steps.
-    
-    Combines indicators to measure reliability:
-    1. Interval Width: (upper - lower) / predicted_mean (Smaller is better).
-    2. Residual StdDev: Lower indicates better historical fit.
-    3. Alpha Absolute: Larger negative alpha indicates stronger error correction.
-    
-    Parameters:
-    -----------
-    model_fitted : VECMResults
-    target_index : str
-    history : pd.DataFrame
-    lower_bound : float
-    upper_bound : float
-    predicted_mean : float
-    
-    Returns:
-    --------
-    float: Confidence score (0~1 range, higher is better).
-    """
-    try:
-        target_idx = history.columns.get_loc(target_index)
-        
-        # 1. Interval Width (Smaller width equals higher confidence)
-        if predicted_mean > 0:
-            interval_width = (upper_bound - lower_bound) / predicted_mean
-        else:
-            interval_width = 1.0  # If predicted mean is <= 0, consider it worst case
-        
-        # 2. Residual Standard Deviation (Smaller dev equals higher confidence)
-        residuals = model_fitted.resid
-        if residuals.ndim == 2:
-            target_residuals = residuals[:, target_idx]
-        else:
-            target_residuals = residuals
-        
-        residual_std = np.std(target_residuals)
-        # Normalize residual std dev relative to predicted mean
-        if predicted_mean > 0:
-            normalized_residual_std = residual_std / predicted_mean
-        else:
-            normalized_residual_std = 1.0
-        
-        # 3. Absolute Alpha (Larger absolute negative alpha equals higher confidence)
-        alpha = model_fitted.alpha
-        if alpha.ndim == 2:
-            target_alpha = alpha[target_idx, :]
-            # Average of absolute negative alphas (considering convergence relations only)
-            negative_alphas = target_alpha[target_alpha < 0]
-            if len(negative_alphas) > 0:
-                alpha_abs_mean = np.mean(np.abs(negative_alphas))
-            else:
-                alpha_abs_mean = 0.0
-        else:
-            if target_idx < len(alpha):
-                alpha_val = alpha[target_idx]
-                alpha_abs_mean = abs(alpha_val) if alpha_val < 0 else 0.0
-            else:
-                alpha_abs_mean = 0.0
-        
-        # Normalize each indicator to 0-1 range and combine
-        # Interval Width: Map to wider range to increase sensitivity
-        # Map 0~1.0 range to 1~0 (0 if above 1.0)
-        confidence_interval = max(0, 1 - min(interval_width / 1.0, 1.0))
-        
-        # Residual StdDev: Map to wider range
-        # Map 0~0.5 range to 1~0
-        confidence_residual = max(0, 1 - min(normalized_residual_std / 0.5, 1.0))
-        
-        # Alpha: Map to wider range
-        # Map 0~0.05 range to 0~1 (1 if above 0.05)
-        confidence_alpha = min(alpha_abs_mean / 0.05, 1.0)
-        
-        # Combined via weighted average (Upweight Alpha convergence speed)
-        confidence = (0.4 * confidence_interval + 
-                     0.3 * confidence_residual + 
-                     0.3 * confidence_alpha)
-        
-        # Expand confidence for better sensitivity (Map 0~1 to 0.2~0.9)
-        # This ensures fractions vary more significantly even in moderate confidence ranges.
-        confidence_expanded = 0.2 + (confidence * 0.7)
-        
-        return float(np.clip(confidence_expanded, 0.0, 1.0))
-        
-    except Exception as e:
-        if not hasattr(get_vecm_confidence, '_error_count'):
-            get_vecm_confidence._error_count = 0
-        if get_vecm_confidence._error_count < 3:
-            print(f"Warning: Error calculating VECM confidence: {e}")
-            get_vecm_confidence._error_count += 1
-        return 0.5  # Default value
-
-def calculate_adaptive_threshold(confidence_history, method='percentile', percentile=10, min_threshold=0.2, max_threshold=0.5):
-    """Calculates adaptive threshold based on historical confidence.
-    
-    Methods:
-    1. 'percentile': Uses lower percentile (Default: 10th percentile).
-    2. 'min': Uses absolute minimum.
-    3. 'mean_std': Uses Mean - 1 StdDev.
-    4. 'rolling_min': Uses rolling window minimum.
-    
-    Parameters:
-    -----------
-    confidence_history : list
-    method : str ('percentile', 'min', 'mean_std', 'rolling_min')
-    percentile : float (0~100)
-    min_threshold : float
-    max_threshold : float
-    
-    Returns:
-    --------
-    float: Calculated adaptive threshold.
-    """
-    if len(confidence_history) < 2:
-        return (min_threshold + max_threshold) / 2
-    
-    conf_array = np.array(confidence_history)
-    
-    if method == 'percentile':
-        # Use lower percentile (e.g., 10th percentile)
-        threshold = np.percentile(conf_array, percentile)
-    elif method == 'min':
-        # Use absolute minimum
-        threshold = np.min(conf_array)
-    elif method == 'mean_std':
-        # Use Mean - StdDev (Lower 1-sigma)
-        threshold = np.mean(conf_array) - np.std(conf_array)
-    elif method == 'rolling_min':
-        # Use last 30-day minimum
-        window = min(30, len(conf_array))
-        threshold = np.min(conf_array[-window:])
-    else:
-        # Default: percentile
-        threshold = np.percentile(conf_array, percentile)
-    
-    # Cap between min and max thresholds
-    threshold = np.clip(threshold, min_threshold, max_threshold)
-    return float(threshold)
-
-def normalize_confidence_to_fraction(confidence_current, confidence_history, min_fraction=0.3, max_fraction=0.7, 
-                                     window_size=60, method='zscore_sigmoid', absolute_threshold=None,
-                                     threshold_method='percentile', threshold_percentile=10):
-    """Normalizes confidence values into position fractions.
-    
-    Parameters:
-    -----------
-    confidence_current : float
-    confidence_history : list
-    min_fraction : float
-    max_fraction : float
-    window_size : int
-    method : str ('zscore_sigmoid', 'minmax', 'percentile')
-    absolute_threshold : float
-        Minimum absolute confidence required to maintain a non-minimum position.
-    
-    Returns:
-    --------
-    float: Normalized fraction (min_fraction ~ max_fraction).
-    """
-    # [Improved] Dynamic Threshold Calculation
-    if absolute_threshold is None:
-        # Calculate dynamically based on history
-        absolute_threshold = calculate_adaptive_threshold(
-            confidence_history, 
-            method=threshold_method,
-            percentile=threshold_percentile
-        )
-    
-    # Absolute confidence threshold check
-    if confidence_current < absolute_threshold:
-        return min_fraction
-    
-    if len(confidence_history) < 2:
-        return (min_fraction + max_fraction) / 2
-    
-    window_conf = confidence_history[-window_size:] if len(confidence_history) >= window_size else confidence_history
-    
-    if method == 'zscore_sigmoid':
-        mean_conf = np.mean(window_conf)
-        std_conf = np.std(window_conf) if len(window_conf) > 1 else 0.1
-        
-        if std_conf < 1e-6:
-            min_conf = np.min(window_conf)
-            max_conf = np.max(window_conf)
-            if max_conf - min_conf < 1e-6:
-                return (min_fraction + max_fraction) / 2
-            normalized = (confidence_current - min_conf) / (max_conf - min_conf)
-            return float(min_fraction + (max_fraction - min_fraction) * normalized)
-        else:
-            # Adjust Z-score sensitivity (increase scale factor)
-            z_score = (confidence_current - mean_conf) / (std_conf * 0.5)  # More sensitive
-            z_score = np.clip(z_score, -2, 2)  # Narrow range for extreme response
-            sigmoid_value = 1 / (1 + np.exp(-z_score))
-            normalized = min_fraction + (max_fraction - min_fraction) * sigmoid_value
-        
-        return float(np.clip(normalized, min_fraction, max_fraction))
-    
-    elif method == 'minmax':
-        min_conf = np.min(window_conf)
-        max_conf = np.max(window_conf)
-        
-        if max_conf - min_conf < 1e-6:
-            return (min_fraction + max_fraction) / 2
-        
-        normalized = (confidence_current - min_conf) / (max_conf - min_conf)
-        fraction = min_fraction + (max_fraction - min_fraction) * normalized
-        return float(np.clip(fraction, min_fraction, max_fraction))
-    
-    elif method == 'percentile':
-        percentile = np.sum(np.array(window_conf) <= confidence_current) / len(window_conf)
-        fraction = min_fraction + (max_fraction - min_fraction) * percentile
-        return float(np.clip(fraction, min_fraction, max_fraction))
-    
-    else:
-        return normalize_confidence_to_fraction(confidence_current, confidence_history, min_fraction, max_fraction, 
-                                                window_size, 'zscore_sigmoid')
+# (get_vecm_confidence moved to trading_utils.py)
+# (calculate_adaptive_threshold moved to trading_utils.py)
+# (normalize_confidence_to_fraction moved to trading_utils.py)
 
 # Determine optimal order for GARCH model
 residuals = model_fitted.resid
@@ -432,33 +165,25 @@ garch_model = arch_model(residuals[:, train_data.columns.get_loc(target_index)],
                          p=p_opt, o=o_opt, q=q_opt, rescale=True)
 garch_fit = garch_model.fit(disp='off')
 
-# Initialize variables
-initial_capital = 10000
+# Initialize Trading State
+initial_capital = SYSTEM_CONFIG.get('initial_capital', 10000)
+commission_rate = SYSTEM_CONFIG.get('commission_rate', 0.0002)
+
 capital = initial_capital
-long_count = 0
-short_count = 0
-unrealized_pnl = 0
-total_assets = initial_capital
 total_shares = 0
 average_price = 0
 position = None
-peak_price = 0  # To track price peaks for trailing stops
-# Set commission rate as 0.02% (0.0002)
-commission_rate = 0.0002
-profit_after_commission = 0
+peak_price = 0
+cumulative_commission = 0
 
-# Risk Management Parameters
-# Risk is managed via two main methods:
-# 1. Base Management: Adjusting investment fractions based on Market Regime.
-# 2. Selective Management (Profit Protection): Trailing stops for gains above 15% (Disabled for base stability).
-USE_RISK_MANAGEMENT = False
-STOP_LOSS_MULT = 8.0          
-TRAILING_STOP_BASE = 0.25     
-MIN_STOP_LOSS = 0.15          
-MAX_STOP_LOSS = 0.50
-
-# Entry Filter Parameters
-ENTRY_EDGE_PCT = 0.0          
+# Load Risk Management
+risk_cfg = SYSTEM_CONFIG.get('risk_management', {})
+USE_RISK_MANAGEMENT = risk_cfg.get('use_risk_management', False)
+STOP_LOSS_MULT = risk_cfg.get('stop_loss_mult', 8.0)
+TRAILING_STOP_BASE = risk_cfg.get('trailing_stop_base', 0.25)
+MIN_STOP_LOSS = risk_cfg.get('min_stop_loss', 0.15)
+MAX_STOP_LOSS = risk_cfg.get('max_stop_loss', 0.50)
+ENTRY_EDGE_PCT = risk_cfg.get('entry_edge_pct', 0.0)
 
 results = []
 trade_history = []
@@ -467,39 +192,27 @@ simulation_end_date = test_data.index[-1]
 history = train_data.copy()
 
 # Forecasting windows (Optimized for TQQQ)
-forecast_steps_buy = 4   
-forecast_steps_sell = 7  
+forecast_steps_buy = SYSTEM_CONFIG.get('forecast_steps_buy', 4)
+forecast_steps_sell = SYSTEM_CONFIG.get('forecast_steps_sell', 7)
 
 # Configuration for VECM Confidence based Dynamic Fraction
-CONFIDENCE_FRACTION_CONFIG_BASE = {
-    'min_fraction': 0.2,      
-    'max_fraction': 0.8,       
-    'window_size': 60,         
-    'method': 'minmax',        
-    'absolute_threshold': None, 
-    'threshold_method': 'percentile', 
-    'threshold_percentile': 10  
-}
+CONFIDENCE_FRACTION_CONFIG = SYSTEM_CONFIG.get('confidence_fraction_config_base', {
+    'min_fraction': 0.2,
+    'max_fraction': 0.8,
+    'window_size': 60,
+    'method': 'minmax',
+    'absolute_threshold': None,
+    'threshold_method': 'percentile',
+    'threshold_percentile': 10
+})
 
-# Regime-specific Fraction Configuration (Bayesian Optimized)
-REGIME_FRACTION_CONFIG = {
-    'bull': {
-        'min_fraction': 0.68,  
-        'max_fraction': 0.97    
-    },
-    'bear': {
-        'min_fraction': 0.48,  
-        'max_fraction': 0.77    
-    },
-    'sideways': {
-        'min_fraction': 0.43,  
-        'max_fraction': 0.86    
-    },
-    'high_vol': {
-        'min_fraction': 0.47,  
-        'max_fraction': 0.70    
-    }
-}
+# Regime-specific Fraction Configuration (Loaded from config.py)
+REGIME_FRACTION_CONFIG = SYSTEM_CONFIG.get('regime_fraction_config', {
+    'bull': {'min_fraction': 0.68, 'max_fraction': 0.97, 'sell_ratio_cap': 0.4414},
+    'bear': {'min_fraction': 0.48, 'max_fraction': 0.77},
+    'sideways': {'min_fraction': 0.43, 'max_fraction': 0.86},
+    'high_vol': {'min_fraction': 0.47, 'max_fraction': 0.70}
+})
 
 # Initialize Regime Detection System
 if USE_REGIME_DETECTION and ModelBasedRegimeDetector is not None:
@@ -511,26 +224,16 @@ else:
     regime_detector = None
     print(f"\n[Regime Detection System Disabled]")
 
-# RL Agent Initialization (Simple Policy)
+# RL Agent Initialization
 rl_agent = None
 if USE_RL_AGENT and VECMRLAgent is not None:
     try:
-        # Optimized Simple Policy parameters for performance
-        simple_policy_params = {
-            'buy_confidence_threshold': 0.65,
-            'sell_confidence_threshold': 0.55,
-            'max_position_ratio': 0.90,
-            'min_position_ratio_for_sell': 0.20,
-            'max_position_size': 0.95
-        }
-        print(f"\n[Using Custom Optimized Simple Policy Parameters]")
-        for key, value in simple_policy_params.items():
-            print(f"  {key}: {value:.4f}")
-        
-        rl_agent = VECMRLAgent(simple_policy_params=simple_policy_params)
+        simple_policy_params = SYSTEM_CONFIG.get('rl_policy_params', {})
         print(f"\n[RL Agent Initialized]")
         print(f"  Mode: Simple Policy (VECM Confidence Based)")
         print(f"  Blend Factor: {RL_BLEND_FACTOR * 100:.1f}%")
+        
+        rl_agent = VECMRLAgent(simple_policy_params=simple_policy_params)
     except Exception as e:
         print(f"\n[RL Agent Initialization Failed] {e}")
         USE_RL_AGENT = False
@@ -541,7 +244,7 @@ else:
     print(f"\n[RL System Disabled]")
 
 # Initialize Confidence & Fractions
-CONFIDENCE_FRACTION_CONFIG = CONFIDENCE_FRACTION_CONFIG_BASE.copy()
+# Base configuration is already loaded into CONFIDENCE_FRACTION_CONFIG
 
 # Initial Buy Confidence
 initial_output_buy, initial_lower_buy, initial_upper_buy = model_fitted.predict(steps=forecast_steps_buy, alpha=0.5)
@@ -671,8 +374,7 @@ for t in range(len(test_data)):
         except Exception as e:
             if should_log: print(f"  Warning: Regime detection failed: {e}")
             current_regime = 'sideways'
-            CONFIDENCE_FRACTION_CONFIG['min_fraction'] = CONFIDENCE_FRACTION_CONFIG_BASE['min_fraction']
-            CONFIDENCE_FRACTION_CONFIG['max_fraction'] = CONFIDENCE_FRACTION_CONFIG_BASE['max_fraction']
+            pass # Ranges are already handled by reg_cfg
     
     # Calculate separate confidences for Buy and Sell
     confidence_buy = get_vecm_confidence(model_fitted, target_index, history, 
@@ -719,15 +421,15 @@ for t in range(len(test_data)):
             rl_pos_size = float(np.clip(rl_action[0], 0.0, 1.0))
             rl_signal = float(np.clip(rl_action[1], -1.0, 1.0))
 
-            # Blend base fraction with RL signal
-            if rl_signal > 0.5:
+            # Always reflect RL's position sizing judgment (Removed 0.5 Hurdle)
+            if rl_signal >= 0:
+                # RL suggests a buying weight based on macro/confidence
                 rl_fraction_buy = np.clip(rl_pos_size, CONFIDENCE_FRACTION_CONFIG['min_fraction'], CONFIDENCE_FRACTION_CONFIG['max_fraction'])
                 rl_fraction_sell = base_fraction_sell
-            elif rl_signal < -0.5:
+            else:
+                # RL suggests a selling weight based on macro/confidence
                 rl_fraction_sell = np.clip(rl_pos_size, CONFIDENCE_FRACTION_CONFIG['min_fraction'], CONFIDENCE_FRACTION_CONFIG['max_fraction'])
                 rl_fraction_buy = base_fraction_buy
-            else:
-                rl_fraction_buy, rl_fraction_sell = base_fraction_buy, base_fraction_sell
             
             blend = RL_BLEND_FACTOR
             fraction_buy = np.clip(blend * rl_fraction_buy + (1 - blend) * base_fraction_buy, CONFIDENCE_FRACTION_CONFIG['min_fraction'], CONFIDENCE_FRACTION_CONFIG['max_fraction'])
@@ -828,7 +530,7 @@ for t in range(len(test_data)):
     if position == 'long' and should_sell and total_shares >= 1:
         if is_bull_regime:
             # Optimized profit taking in bull regime to maximize capital efficiency
-            sell_ratio = 0.4414
+            sell_ratio = reg_cfg.get('sell_ratio_cap', 0.4414)
             shares_to_sell_float = total_shares * sell_ratio
         else:
             # Full logic weighting in other regimes
@@ -863,7 +565,7 @@ for t in range(len(test_data)):
 
     if should_log:
         date_str_loop = test_data.index[t].strftime('%Y-%m-%d')
-        # Enhanced log for buy/sell edge calculation
+        # 매수/매도 여력(Edge) 계산 로그 강화
         buy_edge = (hybrid_yhat_buy - actual_price) / actual_price if actual_price > 0 else 0
         sell_edge = (hybrid_yhat_sell - actual_price) / actual_price if actual_price > 0 else 0
         
@@ -871,9 +573,8 @@ for t in range(len(test_data)):
               f"Yhat(B): {hybrid_yhat_buy:7.2f} | Prc: {actual_price:7.2f} | Assets: {total_assets:10.2f} | Pos: {str(position):>6} | "
               f"Regime: {current_regime:<8}")
         
-        # Log buy skip due to bearish outlook (for analysis)
         if hybrid_yhat_buy <= actual_price and position != 'long' and capital > 0:
-            if t % 50 == 0: # Limit frequency so it does not print too often
+            if t % 50 == 0:
                 print(f"  [Info] Buy skipped: Bearish forecast (Yhat {hybrid_yhat_buy:.2f} <= Actual {actual_price:.2f})")
 
     # Track High-Water Mark for Risk Management
@@ -891,8 +592,8 @@ for t in range(len(test_data)):
         'fraction_sell': fraction_sell,
         'hybrid_yhat_buy': hybrid_yhat_buy,
         'hybrid_yhat_sell': hybrid_yhat_sell,
-        'open_price': actual_price,   # Signal evaluation reference price (open)
-        'close_price': close_price,   # Result evaluation price (close)
+        'open_price': actual_price,
+        'close_price': close_price,
         'capital': capital,
         'total_shares': total_shares,
         'total_assets': total_assets,
@@ -901,10 +602,10 @@ for t in range(len(test_data)):
         'regime': current_regime
     })
 
-# --- Final Performance Metrics & Visualization ---
+# Final Performance Metrics & Visualization
 trade_history_df = pd.DataFrame(trade_history)
 
-# Set the results folder path relative to the directory containing this source file
+# Source code directory-based result folder path settings
 script_dir = os.path.dirname(os.path.abspath(__file__))
 results_dir = os.path.join(script_dir, 'results')
 os.makedirs(results_dir, exist_ok=True)
