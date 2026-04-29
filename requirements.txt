@@ -43,7 +43,9 @@ openpyxl>=3.0.0
 
 # Utilities
 tqdm
-jupyter  # Optional: for interactive notebooks
+rich      # For Quantum Predictor UI
+pyarrow   # For Parquet data support
+jupyter   # Optional: for interactive notebooks
 
 # Testing
 pytest>=7.0.0
