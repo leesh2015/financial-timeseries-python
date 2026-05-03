@@ -3,6 +3,7 @@ import os
 import json
 import logging
 import asyncio
+import time
 from pathlib import Path
 import numpy as np
 
@@ -19,14 +20,24 @@ logging.basicConfig(level=logging.WARNING, format='%(asctime)s [%(levelname)s] %
 logger = logging.getLogger(__name__)
 
 class QuantumPredictor:
-    def __init__(self, symbol="QQQ", host='127.0.0.1', port=9999, base_threshold=0.6):
+    def __init__(self, symbol="QQQ", host='127.0.0.1', port=9999, 
+                 base_threshold=0.83, target_gain=10.15, info_threshold=0.03, 
+                 vol_multiplier=1.0, max_units=100, warmup_jumps=100, velocity_only=False):
         self.symbol = symbol
         self.host = host
         self.port = port
-        self.engine = QuantumDemonEngine()
+        self.base_threshold = base_threshold
+        self.target_gain = target_gain
+        self.info_threshold = info_threshold
+        self.vol_multiplier = vol_multiplier
+        self.max_units = max_units
+        self.warmup_jumps = warmup_jumps
+        self.velocity_only = velocity_only
+        
+        self.engine = QuantumDemonEngine(vol_multiplier=self.vol_multiplier)
         self.last_date = None
         self.last_jump_id = -1
-        self.base_threshold = base_threshold
+        self.last_up_prob = 0.5
         
         # Shared Memory (State for UI)
         self.shared_state = {
@@ -34,8 +45,8 @@ class QuantumPredictor:
             'bid1': 0.0,
             'ask1': 0.0,
             'density': 0.0,
-            'up_prob': 0.0,
-            'down_prob': 0.0,
+            'up_prob': 0.5,
+            'down_prob': 0.5,
             'threshold': 0.0,
             'signal': 'NEUTRAL',
             'tunneling_warning': False,
@@ -47,10 +58,11 @@ class QuantumPredictor:
             'total_pnl': 0.0,
             'wins': 0,
             'losses': 0,
-            'position': 'NONE',
+            'position': 'WARMING UP',
             'unrealized_pnl': 0.0,
-            'jumps_left': 0,
-            'horizon_n': 0
+            'active_units': 0,
+            'horizon_n': 0,
+            'dimension': 5
         }
         
         self.active_positions = [] 
@@ -59,42 +71,25 @@ class QuantumPredictor:
     def reset_session(self, new_date):
         """Reset the engine and statistics for a new trading session"""
         logger.warning(f"New session detected for date: {new_date}. Resetting state...")
-        self.engine = QuantumDemonEngine()
+        self.engine = QuantumDemonEngine(vol_multiplier=self.vol_multiplier)
         self.active_positions = []
         self.last_date = new_date
+        self.last_up_prob = 0.5
         
-        # Reset UI statistics
+        # Reset UI statistics (keep total performance)
         self.shared_state.update({
             'jump_id': 0,
             'density': 0.0,
-            'up_prob': 0.0,
-            'down_prob': 0.0,
-            'threshold': 0.0,
+            'up_prob': 0.5,
+            'down_prob': 0.5,
             'signal': 'NEUTRAL',
             'tunneling_warning': False,
-            'processed_events': 0,
-            'total_trades': 0,
-            'long_count': 0,
-            'short_count': 0,
-            'win_rate': 0.0,
-            'total_pnl': 0.0,
-            'wins': 0,
-            'losses': 0,
-            'position': 'NONE',
+            'position': 'WARMING UP',
             'unrealized_pnl': 0.0,
-            'jumps_left': 0,
+            'active_units': 0,
             'horizon_n': 0
         })
         
-    def _normalize_unitary(self):
-        """Matrix normalization for numerical stability"""
-        mat = self.engine.matrix_builder.matrix
-        row_sums = mat.sum(axis=1)
-        for i in range(mat.shape[0]):
-            if row_sums[i] > 0:
-                mat[i, :] = mat[i, :] / row_sums[i]
-        self.engine.matrix_builder.matrix = mat
-
     async def engine_loop(self):
         logger.warning(f"Connecting to Mock Collector at {self.host}:{self.port}...")
         while True:
@@ -121,7 +116,7 @@ class QuantumPredictor:
                     logger.warning("End of file reached in Mock Collector.")
                     break
                 
-                # Check for session change (Date change or Jump ID drop)
+                # Check for session change
                 curr_date = jump_data.get('date')
                 jump_id = jump_data['jump_id']
                 
@@ -133,10 +128,8 @@ class QuantumPredictor:
                 
                 bid1 = jump_data['bid1']
                 ask1 = jump_data['ask1']
-                bid_vol1 = jump_data['bid_vol1']
-                ask_vol1 = jump_data['ask_vol1']
                 
-                # 1. Restore kinetic sequence and energy
+                # 1. Restore kinetic sequence with high-precision (v2.3)
                 impact_seq = []
                 buy_v, sell_v = 0, 0
                 for imp in jump_data.get('impacts', []):
@@ -144,7 +137,8 @@ class QuantumPredictor:
                         offset_ms=imp.get("ms", 1),
                         volume=imp.get("vol", 1),
                         is_buy=imp.get("buy", True),
-                        intensity=imp.get("intensity", 100.0)
+                        intensity=imp.get("intensity", 100.0),
+                        offset_ns=imp.get("ns") # High-precision ns offset
                     )
                     impact_seq.append(q_imp)
                     if q_imp.is_buy: buy_v += q_imp.volume
@@ -152,41 +146,57 @@ class QuantumPredictor:
 
                 engine_state = QuantumState(
                     jump_id=jump_id, bid1=bid1, ask1=ask1,
-                    bid_vol1=bid_vol1, ask_vol1=ask_vol1,
-                    total_t=0.0, buy_vol=buy_v, sell_vol=sell_v, duration_ms=0
+                    bid_vol1=jump_data['bid_vol1'], ask_vol1=jump_data['ask_vol1'],
+                    total_t=0.0, buy_vol=buy_v, sell_vol=sell_v, 
+                    duration_ms=jump_data.get('duration_ms', 1)
                 )
                 
-                # 2. Engine computation and normalization
-                res = self.engine.process_state(engine_state, impact_seq)
-                self._normalize_unitary()
+                # 2. Engine computation (v2.3 Zero-Lag Architecture)
+                # First, process with N=1 to get the current matrix for N-derivation
+                res = self.engine.process_state(
+                    engine_state, impact_seq, 
+                    velocity_only=self.velocity_only,
+                    horizon_n=1.0
+                )
+                current_matrix = res['matrix']
+                horizon_n = calculate_physical_horizon(current_matrix, target_gain=self.target_gain)
                 
-                # 3. Probability Calculation (Sync with Backtest logic: Apply Physical Horizon)
+                # Project probabilities for the derived horizon N
+                # Use get_n_step_matrix to avoid double-processing the engine's internal counter
+                powered_matrix = self.engine.matrix_builder.get_n_step_matrix(horizon_n)
                 density = res['density']
-                q_v = max(1.0, res['quantized_V'])
-                matrix = self.engine.matrix_builder.matrix
+                dim = res['dimension']
+                mid = dim // 2
                 
-                # [Dynamic Physical Horizon Derivation]
-                horizon_n = calculate_physical_horizon(matrix, target_gain=4.0)
-                slippage = 1 if horizon_n > 200 else 3 # Accept higher friction (3 ticks) for short horizons
+                prob_dist = powered_matrix[mid]
+                if dim % 2 == 0:
+                    # Even (10x10): Perfectly split into 5:5 halves
+                    up_prob = np.sum(prob_dist[:mid])
+                    down_prob = np.sum(prob_dist[mid:])
+                else:
+                    # Odd (5x5): Symmetric split skipping the center cell
+                    up_prob = np.sum(prob_dist[:mid])
+                    down_prob = np.sum(prob_dist[mid+1:])
                 
-                dynamic_threshold = self.base_threshold + (0.2 / q_v)
+                # Dynamic Threshold (Educational adaptation)
+                dynamic_threshold = self.base_threshold
                 
-                m_future = np.linalg.matrix_power(matrix, horizon_n)
-                dim = matrix.shape[0]
-                center_idx = dim // 2
-                prob_dist = m_future[center_idx]
+                # 4. Information Innovation Filter (v2.3 info_threshold)
+                prob_diff = abs(up_prob - self.last_up_prob)
+                self.last_up_prob = up_prob
                 
-                up_prob = sum(prob_dist[:center_idx])
-                down_prob = sum(prob_dist[center_idx+1:])
-                
-                # 4. Signal Determination
+                # 5. Signal Determination
                 signal = 'NEUTRAL'
-                if up_prob > dynamic_threshold:
-                    signal = 'LONG'
-                elif down_prob > dynamic_threshold:
-                    signal = 'SHORT'
+                is_warmup = jump_id < self.warmup_jumps
                 
-                # 5. Trading Simulation (Multiple positions)
+                if not is_warmup:
+                    if up_prob > dynamic_threshold and prob_diff > self.info_threshold:
+                        signal = 'LONG'
+                    elif down_prob > dynamic_threshold and prob_diff > self.info_threshold:
+                        signal = 'SHORT'
+                
+                # 6. Trading Simulation (Theoretical High-Parity Mode)
+                # Exit positions
                 remaining_positions = []
                 for pos in self.active_positions:
                     if jump_id >= pos['target_jump_id']:
@@ -199,17 +209,11 @@ class QuantumPredictor:
                         remaining_positions.append(pos)
                 self.active_positions = remaining_positions
                 
-                # Calculate Unrealized PnL
-                total_unrealized = 0.0
-                for pos in self.active_positions:
-                    curr_exit = bid1 if pos['direction'] == 1 else ask1
-                    total_unrealized += pos['direction'] * (curr_exit - pos['entry_price'])
-
-                # New Entry
-                if signal != 'NEUTRAL':
-                    slippage = 3 if density > 0.8 else 1
+                # Entry positions
+                if signal != 'NEUTRAL' and len(self.active_positions) < self.max_units:
                     direction = 1 if signal == 'LONG' else -1
-                    entry_price = (ask1 + (slippage * self.tick_size)) if direction == 1 else (bid1 - (slippage * self.tick_size))
+                    # Simulation slippage (0.5 tick)
+                    entry_price = (ask1 + 0.5 * self.tick_size) if direction == 1 else (bid1 - 0.5 * self.tick_size)
                     
                     self.active_positions.append({
                         'direction': direction,
@@ -219,16 +223,19 @@ class QuantumPredictor:
                     self.shared_state['total_trades'] += 1
                     if direction == 1: self.shared_state['long_count'] += 1
                     else: self.shared_state['short_count'] += 1
-                    self.shared_state['position'] = f"{signal} Entry"
 
-                # Calculate Win Rate
+                # Calculate Unrealized PnL
+                total_unrealized = 0.0
+                for pos in self.active_positions:
+                    curr_exit = bid1 if pos['direction'] == 1 else ask1
+                    total_unrealized += pos['direction'] * (curr_exit - pos['entry_price'])
+
+                # Performance Stats
                 total_done = self.shared_state['wins'] + self.shared_state['losses']
                 win_rate = (self.shared_state['wins'] / total_done * 100) if total_done > 0 else 0.0
-
-                # Tunneling Detection
                 tunneling = (signal == 'LONG' and prob_dist[-1] > 0.3) or (signal == 'SHORT' and prob_dist[0] > 0.3)
 
-                # 6. Atomic State Update
+                # 7. Atomic State Update
                 self.shared_state.update({
                     'jump_id': jump_id,
                     'bid1': bid1,
@@ -240,15 +247,18 @@ class QuantumPredictor:
                     'signal': signal,
                     'win_rate': win_rate,
                     'unrealized_pnl': total_unrealized,
-                    'jumps_left': len(self.active_positions),
+                    'active_units': len(self.active_positions),
                     'horizon_n': horizon_n,
-                    'dimension': res['dimension'],
+                    'dimension': dim,
                     'tunneling_warning': tunneling,
+                    'position': 'WARMING UP' if is_warmup else ('TRADING' if len(self.active_positions) > 0 else 'WAITING'),
                     'processed_events': self.shared_state['processed_events'] + len(jump_data.get('impacts', []))
                 })
 
             except Exception as e:
                 logger.error(f"Engine Loop Error: {e}")
+                import traceback
+                traceback.print_exc()
                 break
 
     async def ui_loop(self):
@@ -275,20 +285,18 @@ class QuantumPredictor:
             # --- State Table ---
             table = Table(box=box.SIMPLE_HEAVY, show_header=False, expand=True)
             table.add_row("Jump ID", f"[bold white]{state['jump_id']}[/]")
-            table.add_row("Current Price", f"Ask: [bold red]{state['ask1']:.2f}[/] / Bid: [bold blue]{state['bid1']:.2f}[/]")
+            table.add_row("Price", f"Ask: [bold red]{state['ask1']:.2f}[/] / Bid: [bold blue]{state['bid1']:.2f}[/]")
             table.add_row("Energy Density", f"{density_bar} {state['density']:.4f}")
-            table.add_row("Quantum Dimension", f"[bold magenta]{state.get('dimension', 5)}x{state.get('dimension', 5)}[/] (Hilbert Space)")
-            table.add_row("Horizon N", f"[bold yellow]{state['horizon_n']}[/] Jumps (Spacetime Curvature)")
-            table.add_row("Base Threshold", f"[bold yellow]{self.base_threshold:.2f}[/]")
-            table.add_row("Dynamic Barrier", f"{state['threshold']:.4f}")
+            table.add_row("Hilbert Space", f"[bold magenta]{state.get('dimension', 5)}x{state.get('dimension', 5)}[/]")
+            table.add_row("Horizon N", f"[bold yellow]{state['horizon_n']:.2f}[/] (Curvature)")
             table.add_row("UP Prob", up_bar)
             table.add_row("DOWN Prob", dn_bar)
             
             sig_text = f"[{sig_color}]{sig}[/]"
-            if state['tunneling_warning']: sig_text += " [blink bold yellow]⚠️ TUNNELING DETECTED[/]"
+            if state['tunneling_warning']: sig_text += " [blink bold yellow]⚠️ TUNNELING[/]"
             table.add_row("ENGINE SIGNAL", sig_text)
 
-            # --- Floating PnL Panel (Prominent) ---
+            # --- Floating PnL Panel ---
             pnl = state['unrealized_pnl']
             pnl_color = "bold bright_green" if pnl >= 0 else "bold bright_red"
             pnl_panel = Panel(
@@ -296,17 +304,18 @@ class QuantumPredictor:
                 title="[bold white]FLOATING PnL[/]",
                 border_style=pnl_color,
                 padding=(1, 4),
-                subtitle=f"[dim]Total PnL: {state['total_pnl']:+.2f}[/]"
+                subtitle=f"[dim]Total: {state['total_pnl']:+.2f}[/]"
             )
 
             # --- Performance Table ---
             perf_table = Table(box=box.SIMPLE, show_header=True, expand=True, border_style="dim")
             perf_table.add_column("Metrics", style="cyan")
             perf_table.add_column("Values", justify="right")
-            perf_table.add_row("Open Trades", f"[bold magenta]{state['jumps_left']}[/] (Quantum Superposition)")
-            perf_table.add_row("Total Trades", f"{state['total_trades']} (L:{state['long_count']} S:{state['short_count']})")
+            perf_table.add_row("Active Units", f"[bold magenta]{state['active_units']}[/]")
             perf_table.add_row("Win Rate", f"[bold yellow]{state['win_rate']:.1f}%[/] ({state['wins']}W {state['losses']}L)")
-            perf_table.add_row("Status", f"[bold white]{state['position']}[/]")
+            
+            status_color = "yellow" if "WARMING" in state['position'] else "green"
+            perf_table.add_row("Status", f"[bold {status_color}]{state['position']}[/]")
 
             # Assemble Dashboard
             top_group = Group(
@@ -316,13 +325,13 @@ class QuantumPredictor:
             
             return Panel(
                 Group(top_group, Panel(perf_table, title="[bold yellow]Performance Dashboard[/]", border_style="yellow")),
-                title="[bold magenta]Money Maker Hybrid Engine v2.0[/]",
-                subtitle="[dim]Quantum-Physical Market Analysis Interface[/]",
+                title=f"[bold cyan]Demon Engine v2.3 (THEORY) (G:{self.target_gain} T:{self.base_threshold})[/]",
+                subtitle="[dim]Quantum-Physical Market Analysis (Lecture Material Sync)[/]",
                 border_style="bright_magenta",
                 padding=(1, 2)
             )
 
-        # Allow connection logs to print first, then clear the screen for a clean UI
+        # Allow connection logs to print first
         await asyncio.sleep(1.0)
         os.system('cls' if os.name == 'nt' else 'clear')
         
@@ -340,11 +349,22 @@ class QuantumPredictor:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--symbol', type=str, default="QQQ", help="Symbol to predict (e.g., QQQ)")
-    parser.add_argument('--threshold', type=float, default=0.6, help="Base entry threshold (default: 0.6)")
+    parser.add_argument('--symbol', type=str, default="QQQ")
+    parser.add_argument('--threshold', type=float, default=0.83)
+    parser.add_argument('--gain', type=float, default=10.15)
+    parser.add_argument('--vol-multiplier', type=float, default=1.0)
+    parser.add_argument('--warmup', type=int, default=100)
+    parser.add_argument('--v', action='store_true', help="Velocity Only Mode")
     args = parser.parse_args()
     
-    predictor = QuantumPredictor(symbol=args.symbol, base_threshold=args.threshold)
+    predictor = QuantumPredictor(
+        symbol=args.symbol, 
+        base_threshold=args.threshold,
+        target_gain=args.gain,
+        vol_multiplier=args.vol_multiplier,
+        warmup_jumps=args.warmup,
+        velocity_only=args.v
+    )
     try:
         asyncio.run(predictor.run())
     except KeyboardInterrupt:

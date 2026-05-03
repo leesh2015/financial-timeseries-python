@@ -5,81 +5,74 @@ import numpy as np
 
 @dataclass
 class KineticImpact:
-    """Individual trade event occurred while the wall was maintained (Kinetic Energy Impact)"""
+    """Trade event for BTC. High-precision v2.3 spec."""
     offset_ms: int       
-    volume: int          
+    volume: float        
     is_buy: bool         
-    intensity: float     
-    offset_ns: Optional[int] = None # High-precision offset (ns)
+    p: float             
+    offset_ns: Optional[int] = None # High-precision ns offset
 
     def get_kinetic_energy(self) -> float:
-        """T ∝ m * v^2 ∝ volume * (1 / offset_ms)^2"""
-        # Prioritize Nanosecond precision if available
+        """T = m * (1/Δt)^2"""
+        # Prioritize Nanosecond precision
         if self.offset_ns is not None and self.offset_ns > 0:
             velocity = 1000000.0 / self.offset_ns
             return self.volume * (velocity ** 2)
             
-        # [v2.3 Fix] Treat 0ms as 1ms to prevent energy loss in high-frequency feeds
+        # Fallback: Treat 0ms as 1ms (minimum resolution) to preserve high-frequency energy
         dt_ms = max(1, self.offset_ms)
         velocity = 1000.0 / dt_ms
         return self.volume * (velocity ** 2)
 
 @dataclass
 class PotentialEnergyLevel:
-    """Potential energy barrier at a specific price level"""
+    """Potential barrier at a specific BTC price level"""
     price: float     
-    volume: int      
-    is_virtual: bool 
+    volume: float      
     is_ask: bool     
 
 @dataclass
 class MarketPotential:
-    """Order book potential system (5x5 standardization)"""
+    """20-level order book potential system for BTC"""
     asks: List[PotentialEnergyLevel] = field(default_factory=list)
     bids: List[PotentialEnergyLevel] = field(default_factory=list)
     
     @property
-    def total_potential(self) -> int:
-        return sum(p.volume for p in self.asks) + sum(p.volume for p in self.bids)
-
-    @property
-    def v_sum_5(self) -> int:
+    def v_sum_5(self) -> float:
         return sum(p.volume for p in self.asks[:5]) + sum(p.volume for p in self.bids[:5])
 
 @dataclass
-class QuantumJumpState:
-    """Master snapshot of a Quantum Jump (Educational v2.3 Spec)"""
-    jump_id: int                
-    symbol: str = "QQQ"
-    market_type: str = "OVERSEAS_1" 
-    dimension: int = 5          
+class CoinJumpState:
+    """Master snapshot of a BTC Quantum Jump (v2.3 Spec)"""
+    jump_id: int
+    symbol: str = "btcusdt"
+    dimension: int = 5
     
-    # [v2.3 Fix] Support for historical duration_ms for backtest parity
+    bid1: float = 0.0
+    ask1: float = 0.0
+    
     start_time: float = field(default_factory=time.perf_counter) 
     server_ts: int = 0
-    duration_ms: int = 1
-    arrival_ns: Optional[int] = None 
-    velocity_only: bool = False      
-
+    duration_ms: int = 1 # Historical duration
+    arrival_ns: Optional[int] = None
+    velocity_only: bool = False
+    
     initial_potential: MarketPotential = field(default_factory=MarketPotential)
     impact_sequence: List[KineticImpact] = field(default_factory=list)
     
-    accumulated_buy_vol: int = 0
-    accumulated_sell_vol: int = 0
-
     @property
     def total_kinetic_energy(self) -> float:
         if self.velocity_only:
-            total_vol = self.accumulated_buy_vol + self.accumulated_sell_vol
+            total_vol = sum(imp.volume for imp in self.impact_sequence)
             if total_vol <= 0 or self.duration_ms <= 0: return 0.0
             velocity = 1000.0 / self.duration_ms
             return total_vol * (velocity ** 2)
             
         return sum(impact.get_kinetic_energy() for impact in self.impact_sequence)
 
-def calculate_physical_horizon(matrix, target_gain=4.0) -> float:
+def calculate_physical_horizon(matrix, target_gain=6.0) -> float:
     """
-    Demon Engine v2.0+: High-Precision Physical Horizon Derivation
+    Demon Engine v2.0: High-Precision Physical Horizon Derivation
     Returns float N required to overcome market friction.
     """
     dim = matrix.shape[0]
@@ -101,5 +94,5 @@ def calculate_physical_horizon(matrix, target_gain=4.0) -> float:
         n = target_gain / bias
     else:
         n = 10000 
-        
+    
     return float(max(10, n))
