@@ -1,92 +1,91 @@
 import asyncio
 import json
 import logging
+import time
 from datetime import datetime
 from abc import ABC, abstractmethod
+from redis.asyncio import Redis
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
 class BaseQuantumCollector(ABC):
     """
-    Generalized Quantum Data Collector Template (Global Standard)
+    Generalized Quantum Data Collector Template (v3.4.8 Global Standard)
     
-    This template implements the 'Lossless Accumulation' logic described in Lesson 2.
+    This template implements the 'Lossless Accumulation' logic.
     Students should inherit this class and implement the broker-specific methods
-    for connecting and parsing real-time data streams (e.g., Alpaca, Interactive Brokers, Robinhood).
+    for connecting and parsing real-time data streams (e.g., Alpaca, IB, Binance).
     """
-    def __init__(self, symbol: str):
-        self.symbol = symbol
+    def __init__(self, symbol: str, redis_url: str = "redis://localhost"):
+        self.symbol = symbol.upper()
+        self.redis_url = redis_url
+        self.redis = None
+        
         self.jump_id = 0
         self.impact_sequence = []
+        self.last_jump_time = time.perf_counter_ns()
         
-        # Current state of the Order Book (Level 1)
+        # Current state of the Order Book (Level 1 Potential Barrier)
         self.current_bid = 0.0
         self.current_ask = 0.0
-        self.current_bid_vol = 0
-        self.current_ask_vol = 0
+        self.current_bid_vol = 0.0
+        self.current_ask_vol = 0.0
         
     @abstractmethod
     async def connect_broker(self):
-        """
-        Connect to your broker's WebSocket or API.
-        Must be implemented by the user.
-        """
+        """Implement WebSocket connection to your broker here."""
         pass
 
-    @abstractmethod
-    async def subscribe_market_data(self):
-        """
-        Subscribe to Level 1 Quotes (Bid/Ask) and Tick-by-tick trades.
-        Must be implemented by the user.
-        """
-        pass
+    async def start(self):
+        """Initialize Redis and start the collection loop."""
+        self.redis = Redis.from_url(self.redis_url, decode_responses=True)
+        await self.redis.ping()
+        logger.info(f"Connected to Redis for broadcasting: {self.symbol}")
+        await self.connect_broker()
 
-    def on_trade_received(self, volume: int, is_buy: bool, timestamp_ms: int):
+    def on_trade_received(self, volume: float, is_buy: bool, price: float):
         """
-        [Lesson 2: Lossless Accumulation]
+        [Lossless Accumulation]
         Accumulate every single trade impact while the best bid/ask remains unchanged.
-        This preserves the kinetic energy dynamics (volume and speed) without data loss.
         """
+        now_ns = time.perf_counter_ns()
+        # offset_ns measures the time since the last event (Quote or Trade)
         impact = {
-            "vol": volume,
-            "buy": is_buy,
-            "ms": timestamp_ms  # Time interval from the previous trade
+            "vol": volume,      # Kinetic mass
+            "buy": is_buy,      # Direction
+            "p": price,         # Execution price
+            "ms": 1             # Simplified interval (can be calculated via perf_counter)
         }
         self.impact_sequence.append(impact)
 
-    def on_quote_received(self, bid: float, ask: float, bid_vol: int, ask_vol: int):
+    def on_quote_received(self, bid: float, ask: float, bid_vol: float, ask_vol: float):
         """
-        [Lesson 2: Quantum Jump Detection]
-        Trigger a Quantum Jump event when the Best Bid or Best Ask changes.
-        This signals that the potential barrier has been broken.
+        [Quantum Jump Detection]
+        Trigger a Quantum Jump event when the Potential Barrier (Best Bid/Ask) changes.
         """
-        # If the bid or ask price changes, the potential barrier is broken
         if bid != self.current_bid or ask != self.current_ask:
-            # Only finalize if we have a valid previous state (skip the very first initialization)
+            # Finalize the previous state before updating to the new one
             if self.current_bid != 0.0 and self.current_ask != 0.0:
                 self.finalize_quantum_jump(bid, ask, bid_vol, ask_vol)
             
-            # Reset the state for the new potential barrier
             self.current_bid = bid
             self.current_ask = ask
             self.current_bid_vol = bid_vol
             self.current_ask_vol = ask_vol
-            
-            # Clear the accumulated impacts for the new jump
             self.impact_sequence = []
         else:
-            # If price is the same, just update the volume (barrier thickness changes)
+            # Update thickness of the potential barrier
             self.current_bid_vol = bid_vol
             self.current_ask_vol = ask_vol
 
-    def finalize_quantum_jump(self, new_bid: float, new_ask: float, new_bid_vol: int, new_ask_vol: int):
-        """
-        Package the accumulated impacts and the new quote state into a single jump event.
-        """
+    def finalize_quantum_jump(self, new_bid: float, new_ask: float, new_bid_vol: float, new_ask_vol: float):
+        """Package and broadcast the Jump Event."""
         self.jump_id += 1
+        now_ns = time.perf_counter_ns()
+        duration_ms = (now_ns - self.last_jump_time) / 1_000_000.0
+        self.last_jump_time = now_ns
         
-        # Package the data payload
         payload = {
             "date": datetime.now().strftime("%Y%m%d"),
             "jump_id": self.jump_id,
@@ -94,38 +93,30 @@ class BaseQuantumCollector(ABC):
             "ask1": new_ask,
             "bid_vol1": new_bid_vol,
             "ask_vol1": new_ask_vol,
-            "impacts": self.impact_sequence
+            "impacts": self.impact_sequence,
+            "duration_ms": duration_ms,
+            "server_ts": int(time.time() * 1000)
         }
         
-        # Log the event (optional)
-        logger.info(f"Jump {self.jump_id} Confirmed: {len(self.impact_sequence)} impacts bundled.")
-        
-        # Broadcast or save the data
-        self.broadcast_event(payload)
+        asyncio.create_task(self.broadcast_event(payload))
 
-    def broadcast_event(self, payload: dict):
-        """
-        Send the packaged jump event to the Quantum Predictor.
-        Users can implement Redis, TCP Sockets, ZeroMQ, or direct file saving here.
-        """
-        # Example: print JSON to stdout (can be piped to another process)
-        # print(json.dumps(payload))
-        pass
+    async def broadcast_event(self, payload: dict):
+        """Broadcast the jump event to Redis for the Predictor to consume."""
+        list_key = f"quantum:final_jumps:theory:{self.symbol}"
+        await self.redis.rpush(list_key, json.dumps(payload))
+        await self.redis.ltrim(list_key, -100, -1)
+        logger.info(f"[*] Jump {self.jump_id} broadcasted to Redis.")
 
 # ==========================================
 # HOW TO USE (Example Implementation)
 # ==========================================
-# class MyBrokerCollector(BaseQuantumCollector):
+# class MyCustomCollector(BaseQuantumCollector):
 #     async def connect_broker(self):
-#         print("Connecting to Broker WebSocket...")
-#         
-#     async def subscribe_market_data(self):
-#         print(f"Subscribing to {self.symbol}...")
-#         
-#     # In your WebSocket message handler:
-#     async def on_message(self, message):
-#         data = json.loads(message)
-#         if data['type'] == 'trade':
-#             self.on_trade_received(data['size'], data['side'] == 'buy', data['interval_ms'])
-#         elif data['type'] == 'quote':
-#             self.on_quote_received(data['bid'], data['ask'], data['bid_size'], data['ask_size'])
+#         # 1. Connect to WebSocket
+#         # 2. On Trade: self.on_trade_received(vol, is_buy, price)
+#         # 3. On Quote: self.on_quote_received(bid, ask, b_vol, a_vol)
+#         pass
+#
+# if __name__ == "__main__":
+#     collector = MyCustomCollector("TQQQ")
+#     asyncio.run(collector.start())

@@ -16,10 +16,11 @@ class KineticImpact:
         """T = m * (1/Δt)^2"""
         # Prioritize Nanosecond precision
         if self.offset_ns is not None and self.offset_ns > 0:
+            # Scale factor: 1ms = 1,000,000ns
             velocity = 1000000.0 / self.offset_ns
             return self.volume * (velocity ** 2)
             
-        # Fallback: Treat 0ms as 1ms (minimum resolution) to preserve high-frequency energy
+        # [Lens Clean] Treat 0ms as 1ms to prevent energy loss in high-frequency feeds
         dt_ms = max(1, self.offset_ms)
         velocity = 1000.0 / dt_ms
         return self.volume * (velocity ** 2)
@@ -43,7 +44,7 @@ class MarketPotential:
 
 @dataclass
 class CoinJumpState:
-    """Master snapshot of a BTC Quantum Jump (v2.3 Spec)"""
+    """Master snapshot of a BTC Quantum Jump (v2.3 Production Spec) Lands Clean."""
     jump_id: int
     symbol: str = "btcusdt"
     dimension: int = 5
@@ -51,15 +52,17 @@ class CoinJumpState:
     bid1: float = 0.0
     ask1: float = 0.0
     
+    # [Lens Clean] Prefer explicit duration_ms for backtest parity
     start_time: float = field(default_factory=time.perf_counter) 
     server_ts: int = 0
-    duration_ms: int = 1 # Historical duration
+    duration_ms: int = 1 
     arrival_ns: Optional[int] = None
     velocity_only: bool = False
+    spectral_gap: float = 0.1 # Real-time state order from Adaptive Core
     
     initial_potential: MarketPotential = field(default_factory=MarketPotential)
     impact_sequence: List[KineticImpact] = field(default_factory=list)
-    
+
     @property
     def total_kinetic_energy(self) -> float:
         if self.velocity_only:
@@ -72,7 +75,7 @@ class CoinJumpState:
 
 def calculate_physical_horizon(matrix, target_gain=6.0) -> float:
     """
-    Demon Engine v2.0: High-Precision Physical Horizon Derivation
+    Demon Engine v2.0+: High-Precision Physical Horizon Derivation
     Returns float N required to overcome market friction.
     """
     dim = matrix.shape[0]
@@ -95,4 +98,4 @@ def calculate_physical_horizon(matrix, target_gain=6.0) -> float:
     else:
         n = 10000 
     
-    return float(max(10, n))
+    return n # Pure physical horizon without arbitrary clamps

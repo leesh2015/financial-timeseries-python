@@ -4,6 +4,8 @@ import json
 import logging
 import os
 import sys
+import time
+from redis.asyncio import Redis
 
 # Add project root path
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -15,83 +17,89 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 class MockCollector:
-    def __init__(self, data_path: str, host: str = '127.0.0.1', port: int = 9999):
+    """
+    Quantum Mock Collector (v3.4.8 Simulation)
+    Reads historical jump data and streams it to Redis to simulate a live market.
+    """
+    def __init__(self, data_path: str, symbol: str = "TQQQ", redis_url: str = "redis://localhost"):
         self.data_path = data_path
-        self.host = host
-        self.port = port
+        self.symbol = symbol.upper()
+        self.redis_url = redis_url
+        self.redis = None
         self.df = None
 
     def load_data(self):
         logger.info(f"Loading sample data from {self.data_path}...")
         if not os.path.exists(self.data_path):
-            logger.error("Sample data not found. Please check the data directory.")
+            logger.error(f"Sample data not found at {self.data_path}. Please check the data directory.")
             sys.exit(1)
         self.df = pd.read_parquet(self.data_path)
-        logger.info(f"Loaded {len(self.df)} jump states. Ready to stream.")
-
-    async def handle_client(self, reader, writer):
-        addr = writer.get_extra_info('peername')
-        logger.info(f"Client connected: {addr}")
-        
-        try:
-            for i, row in self.df.iterrows():
-                # Construct payload identical to what Redis would broadcast
-                impacts = []
-                if 'impact_json' in row and row['impact_json']:
-                    try:
-                        impacts = json.loads(row['impact_json'])
-                    except:
-                        pass
-
-                payload = {
-                    "date": str(row.get('date', '20260424')),
-                    "jump_id": row['jump_id'],
-                    "bid1": row['bid1'],
-                    "ask1": row['ask1'],
-                    "bid_vol1": row['bid_vol1'],
-                    "ask_vol1": row['ask_vol1'],
-                    "impacts": impacts
-                }
-                
-                # Send JSON string with newline terminator
-                data = json.dumps(payload) + "\n"
-                writer.write(data.encode('utf-8'))
-                await writer.drain()
-                
-                # Simulate market delay (Accelerated time: 0.1s to 0.5s)
-                import random
-                await asyncio.sleep(random.uniform(0.05, 0.2))
-                
-            logger.info("Finished streaming all data.")
-            writer.write(b'{"EOF": true}\n')
-            await writer.drain()
-
-        except ConnectionResetError:
-            logger.warning("Client disconnected abruptly.")
-        finally:
-            writer.close()
-            await writer.wait_closed()
-            logger.info(f"Connection closed for {addr}")
+        logger.info(f"Loaded {len(self.df)} jump states. Ready to simulate.")
 
     async def run(self):
         self.load_data()
-        server = await asyncio.start_server(self.handle_client, self.host, self.port)
-        addr = server.sockets[0].getsockname()
-        logger.info(f"Mock Collector streaming server running on {addr}")
-        logger.info("Run 'quantum_predictor.py' in another terminal to connect.")
+        self.redis = Redis.from_url(self.redis_url, decode_responses=True)
+        await self.redis.ping()
         
-        async with server:
-            await server.serve_forever()
+        list_key = f"quantum:final_jumps:theory:{self.symbol}"
+        logger.info(f"Mock Collector streaming to Redis: {list_key}")
+        logger.info("Run 'quantum_predictor.py' in another terminal to see the results.")
+        
+        try:
+            for i, row in self.df.iterrows():
+                # 1. Parse impacts (Kinetic Energy sequence)
+                impacts = []
+                impact_raw = row.get('impact_json') or row.get('impacts')
+                if impact_raw:
+                    try:
+                        if isinstance(impact_raw, str):
+                            impacts = json.loads(impact_raw)
+                        else:
+                            impacts = list(impact_raw)
+                    except:
+                        pass
+
+                # 2. Package the Jump Event
+                payload = {
+                    "date": str(row.get('date', '20260511')),
+                    "jump_id": int(row['jump_id']),
+                    "bid1": float(row['bid1']),
+                    "ask1": float(row['ask1']),
+                    "bid_vol1": float(row.get('bid_vol1', 0)),
+                    "ask_vol1": float(row.get('ask_vol1', 0)),
+                    "impacts": impacts,
+                    "duration_ms": float(row.get('duration_ms', 100))
+                }
+                
+                # 3. Stream to Redis (matching Live Predictor expectation)
+                await self.redis.rpush(list_key, json.dumps(payload))
+                await self.redis.ltrim(list_key, -100, -1)
+                
+                # 4. Simulate real-time interval (Accelerated simulation)
+                # In a real market, jumps occur based on price changes.
+                await asyncio.sleep(0.1) 
+                
+                if i % 100 == 0:
+                    print(f"[*] Streamed {i}/{len(self.df)} jumps...")
+
+            logger.info("Finished streaming all data.")
+
+        except Exception as e:
+            logger.error(f"Streaming Error: {e}")
+        finally:
+            await self.redis.close()
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--file', type=str, default='QQQ_jump_sample.parquet', help='Sample parquet file name')
+    parser = argparse.ArgumentParser(description="Quantum Mock Collector (Redis Sim)")
+    parser.add_argument('--symbol', type=str, default='TQQQ', help='Symbol to simulate')
+    parser.add_argument('--file', type=str, default='QQQ_jump_sample.parquet', help='Sample parquet file')
     args = parser.parse_args()
     
     data_file = os.path.join(project_root, 'data', args.file)
-    collector = MockCollector(data_path=data_file)
+    collector = MockCollector(data_path=data_file, symbol=args.symbol)
+    
     try:
         asyncio.run(collector.run())
     except KeyboardInterrupt:
-        print("\nCollector stopped.")
+        print("\nSimulation stopped.")

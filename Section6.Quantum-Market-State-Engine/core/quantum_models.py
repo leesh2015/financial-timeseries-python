@@ -13,15 +13,15 @@ class KineticImpact:
     offset_ns: Optional[int] = None # High-precision offset (ns)
 
     def get_kinetic_energy(self) -> float:
-        """T ∝ m * v^2 ∝ volume * (1 / offset_ms)^2"""
-        # Prioritize Nanosecond precision if available
+        """T ∝ m * v^2 | Standardized Velocity: 1ms = 1.0"""
         if self.offset_ns is not None and self.offset_ns > 0:
+            # 1ms (1,000,000ns) -> v = 1.0
             velocity = 1000000.0 / self.offset_ns
             return self.volume * (velocity ** 2)
             
-        # [v2.3 Fix] Treat 0ms as 1ms to prevent energy loss in high-frequency feeds
         dt_ms = max(1, self.offset_ms)
-        velocity = 1000.0 / dt_ms
+        # 1ms -> v = 1.0
+        velocity = 1.0 / dt_ms
         return self.volume * (velocity ** 2)
 
 @dataclass
@@ -47,32 +47,43 @@ class MarketPotential:
         return sum(p.volume for p in self.asks[:5]) + sum(p.volume for p in self.bids[:5])
 
 @dataclass
-class QuantumJumpState:
-    """Master snapshot of a Quantum Jump (Educational v2.3 Spec)"""
+class QuantumState:
+    """Master snapshot of a market event (v2.4 Unified Standard)"""
     jump_id: int                
-    symbol: str = "QQQ"
-    market_type: str = "OVERSEAS_1" 
-    dimension: int = 5          
+    symbol: str = "TQQQ"
     
-    # [v2.3 Fix] Support for historical duration_ms for backtest parity
-    start_time: float = field(default_factory=time.perf_counter) 
-    server_ts: int = 0
+    # Price & L1 Volume
+    bid1: float = 0.0
+    ask1: float = 0.0
+    bid_vol1: int = 0
+    ask_vol1: int = 0
+    
+    # Trading Activity
+    buy_vol: int = 0
+    sell_vol: int = 0
     duration_ms: int = 1
+    
+    # [Tier 2+] Depth Data
+    bid_vols: List[int] = field(default_factory=list)
+    ask_vols: List[int] = field(default_factory=list)
+
+    # Physical Context
+    server_ts: int = 0
     arrival_ns: Optional[int] = None 
     velocity_only: bool = False      
-
+    dimension: int = 5          
+    
     initial_potential: MarketPotential = field(default_factory=MarketPotential)
     impact_sequence: List[KineticImpact] = field(default_factory=list)
     
-    accumulated_buy_vol: int = 0
-    accumulated_sell_vol: int = 0
-
     @property
     def total_kinetic_energy(self) -> float:
+        """T ∝ sum(m * v^2)"""
         if self.velocity_only:
-            total_vol = self.accumulated_buy_vol + self.accumulated_sell_vol
+            total_vol = self.buy_vol + self.sell_vol
             if total_vol <= 0 or self.duration_ms <= 0: return 0.0
-            velocity = 1000.0 / self.duration_ms
+            # [Standardized] 1ms is base velocity unit
+            velocity = 1.0 / self.duration_ms
             return total_vol * (velocity ** 2)
             
         return sum(impact.get_kinetic_energy() for impact in self.impact_sequence)
@@ -102,4 +113,4 @@ def calculate_physical_horizon(matrix, target_gain=4.0) -> float:
     else:
         n = 10000 
         
-    return float(max(10, n))
+    return n
