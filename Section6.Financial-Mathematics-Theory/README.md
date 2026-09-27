@@ -1,11 +1,11 @@
-# Appendix - Financial Mathematics Theory and Practical Examples
+# Section 6 - Financial Mathematics Theory and Practical Examples
 
 This directory contains a comprehensive guide to all financial mathematics theory used in quant trading, implemented with **easy-to-understand example code**.
 
 ## 📚 Structure
 
 ```
-Appendix/
+Section6.Financial-Mathematics-Theory/
 ├── README.md                           # This file
 ├── Chapter1_Linear_Algebra/           # Linear Algebra: Portfolio & Factors
 │   ├── __init__.py

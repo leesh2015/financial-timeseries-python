@@ -186,27 +186,11 @@ Theoretical foundations and practical applications of factor-based asset pricing
   - Performance evaluation (Sharpe, Alpha, etc.)
 - **Chapter 5**: Transaction Cost Analysis & Execution Optimization
 
-### Section 6: Quantum Market State Engine
+### Section 6: Financial Mathematics Theory and Practical Examples
 
-**Status**: ✅ Course Available 🚀 **[v2.3] Symmetric Parity & Zero-Lag Upgrade**
+**Status**: ✅ Course Available
 
-[📖 Detailed Documentation](Section6.Quantum-Market-State-Engine/README.md)
-
-A paradigm shift in quantitative trading using **Quantum Fluid Dynamics** and event-driven causality:
-
-- **Chapter 1**: The Death of Moving Averages (Event-Time vs Clock-Time)
-- **Chapter 2**: Reconstructing the Market as a Hamiltonian System
-- **Chapter 3**: Matrix Mechanics & Dynamic Dimension Scaling (5x5 to 10x10)
-- **Chapter 4**: The Probability Dial (Customizable Win-Rate Engineering)
-- **Chapter 5**: [NEW] **Symmetric Parity**: Eliminating dimensional bias and ensuring mathematical integrity
-- **Chapter 6**: [NEW] **Zero-Lag Architecture**: Ultra-precise predictor removing horizon ($N$) derivation delay
-- **Verified Proof**: Overwhelming win-rate on TQQQ (3x ETF) and BTC/USDT (Crypto) empirical data.
-
-### Appendix: Financial Mathematics Theory and Practical Examples
-
-**Status**: ✅ Available
-
-[📖 Detailed Documentation](Appendix/README.md)
+[📖 Detailed Documentation](Section6.Financial-Mathematics-Theory/README.md)
 
 A comprehensive guide to all financial mathematics theory used in quant trading, implemented with **easy-to-understand example code**:
 
@@ -235,6 +219,22 @@ A comprehensive guide to all financial mathematics theory used in quant trading,
   - Bayesian inference examples
   - Understanding Kalman Filter
   - State-space models
+
+### Section 7: Quantum Market State Engine
+
+**Status**: ✅ Course Available 🚀 **[v2.3] Symmetric Parity & Zero-Lag Upgrade**
+
+[📖 Detailed Documentation](Section7.Quantum-Market-State-Engine/README.md)
+
+A paradigm shift in quantitative trading using **Quantum Fluid Dynamics** and event-driven causality:
+
+- **Chapter 1**: The Death of Moving Averages (Event-Time vs Clock-Time)
+- **Chapter 2**: Reconstructing the Market as a Hamiltonian System
+- **Chapter 3**: Matrix Mechanics & Dynamic Dimension Scaling (5x5 to 10x10)
+- **Chapter 4**: The Probability Dial (Customizable Win-Rate Engineering)
+- **Chapter 5**: [NEW] **Symmetric Parity**: Eliminating dimensional bias and ensuring mathematical integrity
+- **Chapter 6**: [NEW] **Zero-Lag Architecture**: Ultra-precise predictor removing horizon ($N$) derivation delay
+- **Verified Proof**: Overwhelming win-rate on TQQQ (3x ETF) and BTC/USDT (Crypto) empirical data.
 
 ## 🚀 Quick Start
 
@@ -287,23 +287,12 @@ python state_space_model.py
 cd "Section5.Factor-Based Asset Pricing Models/Chapter4.Practical Application and Backtesting"
 python factor_portfolio_backtest.py
 
-**Section 6 - Quantum Market State Engine:**
-```bash
-# Terminal 1: Start Mock Collector
-cd "Section6.Quantum-Market-State-Engine/scripts"
-python mock_collector.py
-
-# Terminal 2: Run Live Predictor UI (Money Maker Dashboard)
-python quantum_predictor.py --threshold 0.83
-```
-```
-
-**Appendix - Financial Mathematics:**
+**Section 6 - Financial Mathematics:**
 ```bash
 # Install dependencies from project root (skip if already installed)
 pip install -r requirements.txt
 
-cd Appendix
+cd Section6.Financial-Mathematics-Theory
 
 # Chapter 1: Linear Algebra
 python Chapter1_Linear_Algebra/portfolio_optimization.py
@@ -316,6 +305,16 @@ python Chapter3_Probability_Statistics/stationarity_analysis.py
 
 # Chapter 4: Bayesian
 python Chapter4_Bayesian_Filtering/kalman_filter_demo.py
+```
+
+**Section 7 - Quantum Market State Engine:**
+```bash
+# Terminal 1: Start Mock Collector
+cd "Section7.Quantum-Market-State-Engine/scripts"
+python mock_collector.py
+
+# Terminal 2: Run Live Predictor UI (Money Maker Dashboard)
+python quantum_predictor.py --threshold 0.83
 ```
 
 Results will be saved in the `results/` folder within each section.
@@ -387,8 +386,8 @@ This project implements state-of-the-art financial econometrics techniques:
 | Section 3: Production System | `Section3.Production Investment Strategy/` | ✅ Available 🚀 |
 | Section 4: Advanced Time Series Models | `Section4.Advanced Time Series Models/` | ✅ Available |
 | Section 5: Factor Models | `Section5.Factor-Based Asset Pricing Models/` | ✅ Available |
-| Section 6: Quantum Engine | `Section6.Quantum-Market-State-Engine/` | ✅ Available 🚀 |
-| Appendix: Financial Mathematics | `Appendix/` | ✅ Available |
+| Section 6: Financial Mathematics | `Section6.Financial-Mathematics-Theory/` | ✅ Available |
+| Section 7: Quantum Engine | `Section7.Quantum-Market-State-Engine/` | ✅ Available 🚀 |
 
 ## 🤝 Contributing
 

@@ -186,27 +186,11 @@ Python을 활용한 금융 시계열 분석, 알고리즘 트레이딩 전략, �
   - 성과 평가 (Sharpe, Alpha 등)
 - **Chapter 5**: 거래 비용 분석 및 체결 최적화
 
-### Section 6: 양자 시장 상태 엔진 (Quantum Market State Engine)
+### Section 6: 금융수학 이론과 실전 예제
+ 
+**상태**: ✅ 강의 제공 중
 
-**상태**: ✅ 강의 제공 중 🚀 **[v2.3] Symmetric Parity & Zero-Lag Upgrade**
-
-[📖 상세 문서 보기](Section6.Quantum-Market-State-Engine/README.md)
-
-**양자 유체 역학(Quantum Fluid Dynamics)**과 사건 기반 인과율을 이용한 퀀트 트레이딩의 패러다임 전환:
-
-- **Chapter 1**: 이동평균선의 종말 (사건 시간 vs 물리적 시간)
-- **Chapter 2**: 시장을 해밀토니안 시스템으로 재구축하기
-- **Chapter 3**: 행렬 역학 및 동적 차원 스케일링 (5x5 to 10x10)
-- **Chapter 4**: 승률 다이얼 (커스텀 승률 설계 및 엔지니어링)
-- **Chapter 5**: [NEW] **대칭 파리티(Symmetric Parity)**: 차원 편향 제거 및 수리적 무결성 확보
-- **Chapter 6**: [NEW] **Zero-Lag 아키텍처**: 지평선($N$) 도출의 지연을 제거한 초정밀 프레딕터
-- **실전 증명**: TQQQ(3배 ETF) 및 BTC/USDT(코인) 실증 데이터를 통한 압도적 승률 확보
-
-### Appendix: 금융수학 이론과 실전 예제
-
-**상태**: ✅ 제공 중
-
-[📖 상세 문서 보기](Appendix/README.md)
+[📖 상세 문서 보기](Section6.Financial-Mathematics-Theory/README.md)
 
 퀀트 트레이딩에서 다루는 모든 금융수학 이론을 **이해하기 쉬운 예제 코드**로 구현한 가이드입니다:
 
@@ -235,6 +219,22 @@ Python을 활용한 금융 시계열 분석, 알고리즘 트레이딩 전략, �
   - 베이지안 추론 예제
   - 칼만 필터 이해하기
   - 상태 공간 모델
+
+### Section 7: 양자 시장 상태 엔진 (Quantum Market State Engine)
+
+**상태**: ✅ 강의 제공 중 🚀 **[v2.3] Symmetric Parity & Zero-Lag Upgrade**
+
+[📖 상세 문서 보기](Section7.Quantum-Market-State-Engine/README.md)
+
+**양자 유체 역학(Quantum Fluid Dynamics)**과 사건 기반 인과율을 이용한 퀀트 트레이딩의 패러다임 전환:
+
+- **Chapter 1**: 이동평균선의 종말 (사건 시간 vs 물리적 시간)
+- **Chapter 2**: 시장을 해밀토니안 시스템으로 재구축하기
+- **Chapter 3**: 행렬 역학 및 동적 차원 스케일링 (5x5 to 10x10)
+- **Chapter 4**: 승률 다이얼 (커스텀 승률 설계 및 엔지니어링)
+- **Chapter 5**: [NEW] **대칭 파리티(Symmetric Parity)**: 차원 편향 제거 및 수리적 무결성 확보
+- **Chapter 6**: [NEW] **Zero-Lag 아키텍처**: 지평선($N$) 도출의 지연을 제거한 초정밀 프레딕터
+- **실전 증명**: TQQQ(3배 ETF) 및 BTC/USDT(코인) 실증 데이터를 통한 압도적 승률 확보
 
 ## 🚀 빠른 시작
 
@@ -287,23 +287,12 @@ python state_space_model.py
 cd "Section5.Factor-Based Asset Pricing Models/Chapter4.Practical Application and Backtesting"
 python factor_portfolio_backtest.py
 
-**Section 6 - 양자 시장 상태 엔진:**
-```bash
-# 터미널 1: 가상 데이터 수집기 시작
-cd "Section6.Quantum-Market-State-Engine/scripts"
-python mock_collector.py
-
-# 터미널 2: 실시간 예측 UI 실행 (Money Maker 대시보드)
-python quantum_predictor.py --threshold 0.83
-```
-```
-
-**Appendix - 금융수학 이론:**
+**Section 6 - 금융수학 이론:**
 ```bash
 # 프로젝트 루트에서 의존성 설치 (이미 설치했다면 생략 가능)
 pip install -r requirements.txt
 
-cd Appendix
+cd Section6.Financial-Mathematics-Theory
 
 # Chapter 1: 선형대수학
 python Chapter1_Linear_Algebra/portfolio_optimization.py
@@ -316,6 +305,16 @@ python Chapter3_Probability_Statistics/stationarity_analysis.py
 
 # Chapter 4: 베이지안
 python Chapter4_Bayesian_Filtering/kalman_filter_demo.py
+```
+
+**Section 7 - 양자 시장 상태 엔진:**
+```bash
+# 터미널 1: 가상 데이터 수집기 시작
+cd "Section7.Quantum-Market-State-Engine/scripts"
+python mock_collector.py
+
+# 터미널 2: 실시간 예측 UI 실행 (Money Maker 대시보드)
+python quantum_predictor.py --threshold 0.83
 ```
 
 결과는 각 섹션의 `results/` 폴더에 저장됩니다.
@@ -387,8 +386,8 @@ python Chapter4_Bayesian_Filtering/kalman_filter_demo.py
 | Section 3: 프로덕션 시스템 | `Section3.Production Investment Strategy/` | ✅ 제공 중 🚀 |
 | Section 4: 고급 시계열 모델 | `Section4.Advanced Time Series Models/` | ✅ 제공 중 |
 | Section 5: 팩터 모델 | `Section5.Factor-Based Asset Pricing Models/` | ✅ 제공 중 |
-| Section 6: 양자 엔진 | `Section6.Quantum-Market-State-Engine/` | ✅ 제공 중 🚀 |
-| Appendix: 금융수학 이론 | `Appendix/` | ✅ 제공 중 |
+| Section 6: 금융수학 이론 | `Section6.Financial-Mathematics-Theory/` | ✅ 제공 중 |
+| Section 7: 양자 엔진 | `Section7.Quantum-Market-State-Engine/` | ✅ 제공 중 🚀 |
 
 ## 🤝 기여하기
 

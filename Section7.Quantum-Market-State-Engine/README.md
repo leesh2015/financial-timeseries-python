@@ -1,4 +1,4 @@
-# Section 6: Quantum Market State Engine (Financial Demon)
+# Section 7: Quantum Market State Engine (Financial Demon)
 
 Welcome to the **Quantum Market State Engine**. This section introduces a paradigm shift in quantitative trading. We completely abandon the illusion of "physical time" (like 1-minute candles or moving averages) and reconstruct the market as a **Quantum Fluid Dynamics** system driven purely by causality and event density.
 
