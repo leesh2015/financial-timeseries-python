@@ -236,6 +236,21 @@ Python을 활용한 금융 시계열 분석, 알고리즘 트레이딩 전략, �
 - **Chapter 6**: [NEW] **Zero-Lag 아키텍처**: 지평선($N$) 도출의 지연을 제거한 초정밀 프레딕터
 - **실전 증명**: TQQQ(3배 ETF) 및 BTC/USDT(코인) 실증 데이터를 통한 압도적 승률 확보
 
+### Section 8: 양자 정준 미세구조 & 개방계 완화 (Quantum Canonical Microstructure)
+
+**상태**: 🚀 **[NEW] 개방 양자계 및 공식 학술 프리프린트** ([DOI: 10.5281/zenodo.23042820](https://doi.org/10.5281/zenodo.23042820))
+
+[📖 상세 문서 보기](Section8.Quantum-Canonical-Microstructure/README_KR.md) | [English Guide](Section8.Quantum-Canonical-Microstructure/README.md)
+
+학술 연구 논문 *"A Quantum Canonical Framework for Order Book Dynamics: Proper-Time Relaxation in Non-Equilibrium Markets"*의 공식 재현 및 강의 패키지:
+
+- **Chapter 1**: 금융 플랑크 상수($h_f = \Delta p_{\min} \cdot \Delta v_{\min}$)와 격자 위상 공간
+- **Chapter 2**: 유효 해밀토니안 구성 및 $\mathrm{SU}(2)$ 폐쇄형 유니터리 회전
+- **Chapter 3**: 개방 양자계: 린드블라드-코사코프스키 마스터 방정식과 위상 탈결맞음
+- **Chapter 4**: 볼륨 클록 고유시간($d\tau$)과 측지선 체류 척도의 상대론적 수축
+- **Chapter 5**: 열역학적 상전이: 폰 노이만 엔트로피 붕괴와 골든 샌드위치 윈도우
+- **Chapter 6**: 초고빈도 선물 틱 데이터 기반 전수 실증 시뮬레이션 및 재현
+
 ## 🚀 빠른 시작
 
 ### 설치

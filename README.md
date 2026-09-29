@@ -236,6 +236,21 @@ A paradigm shift in quantitative trading using **Quantum Fluid Dynamics** and ev
 - **Chapter 6**: [NEW] **Zero-Lag Architecture**: Ultra-precise predictor removing horizon ($N$) derivation delay
 - **Verified Proof**: Overwhelming win-rate on TQQQ (3x ETF) and BTC/USDT (Crypto) empirical data.
 
+### Section 8: Quantum Canonical Microstructure & Open-System Relaxation
+
+**Status**: 🚀 **[NEW] Open Quantum Systems & Academic Preprint** ([DOI: 10.5281/zenodo.23042820](https://doi.org/10.5281/zenodo.23042820))
+
+[📖 Detailed Documentation](Section8.Quantum-Canonical-Microstructure/README.md) | [한국어 안내](Section8.Quantum-Canonical-Microstructure/README_KR.md)
+
+Official academic replication and course materials for the research paper *"A Quantum Canonical Framework for Order Book Dynamics: Proper-Time Relaxation in Non-Equilibrium Markets"*:
+
+- **Chapter 1**: The Financial Planck Constant ($h_f = \Delta p_{\min} \cdot \Delta v_{\min}$) and Lattice Phase Space
+- **Chapter 2**: Effective Hamiltonian Construction and Closed-Form $\mathrm{SU}(2)$ Unitary Rotation
+- **Chapter 3**: Open Quantum Systems: Lindblad-Kossakowski Master Equation & Environmental Dephasing
+- **Chapter 4**: Volume-Clocked Proper Time ($d\tau$) and Geodesic Dwell Timescale Contraction
+- **Chapter 5**: Thermodynamic Phase Transitions: von Neumann Entropy Collapse & Golden Windows
+- **Chapter 6**: Full Empirical Replication Walkthrough on Ultra-High-Frequency Futures Tick Data
+
 ## 🚀 Quick Start
 
 ### Installation
