@@ -72,15 +72,22 @@ class GoldenWindowPhaseGater:
     """
     def __init__(self, entropy_drop_threshold: float = 0.25):
         self.entropy_drop_threshold = entropy_drop_threshold
-        self.baseline_entropy = 0.693147  # ln(2) for maximum mixed state
+        self.baseline_entropy = float(np.log(2.0))  # ln(2) for maximally mixed thermal ground state
+        self.prev_entropy = float(np.log(2.0))
 
-    def evaluate_entropy_drop(self, current_entropy: float) -> Tuple[bool, float]:
+    def evaluate_entropy_drop(self, current_entropy: float) -> Tuple[bool, float, float]:
         """
-        Checks if Delta S = S(tau) - S_baseline satisfies Delta S < -epsilon_S.
+        Returns whether entropy dropped by more than the threshold, the step change
+        S(tau_k) - S(tau_{k-1}), and the deficit from the maximally mixed state
+        S(tau_k) - ln(2). The event test and state diagnostic are kept separate.
         """
-        delta_s = current_entropy - self.baseline_entropy
-        is_coherent = delta_s < -self.entropy_drop_threshold
-        return is_coherent, float(delta_s)
+        current_entropy = float(current_entropy)
+        step_delta_s = current_entropy - self.prev_entropy
+        thermal_deficit_s = current_entropy - self.baseline_entropy
+        self.prev_entropy = current_entropy
+
+        is_entropy_drop = step_delta_s < -self.entropy_drop_threshold
+        return is_entropy_drop, float(step_delta_s), float(thermal_deficit_s)
 
     @staticmethod
     def is_structural_window(utc_hour_float: float) -> Tuple[bool, str]:

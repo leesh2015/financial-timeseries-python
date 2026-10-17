@@ -116,7 +116,7 @@ class QuantumCanonicalEngine:
         microstate = self.dissipator.compute_state_diagnostics(self.rho)
 
         # 7. Evaluate Phase Gating & Entropy Drop
-        is_entropy_drop, delta_s = self.phase_gater.evaluate_entropy_drop(microstate.entropy)
+        is_entropy_drop, step_delta_s, thermal_deficit_s = self.phase_gater.evaluate_entropy_drop(microstate.entropy)
         is_window, window_desc = self.phase_gater.is_structural_window(utc_hour_float)
 
         return {
@@ -132,7 +132,8 @@ class QuantumCanonicalEngine:
             "entropy": microstate.entropy,
             "info_purity": microstate.info_purity,
             "is_entropy_drop": is_entropy_drop,
-            "delta_entropy": delta_s,
+            "delta_entropy": step_delta_s,
+            "thermal_entropy_deficit": thermal_deficit_s,
             "in_structural_window": is_window,
             "window_desc": window_desc
         }

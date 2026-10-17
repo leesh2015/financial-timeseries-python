@@ -28,16 +28,19 @@ class QuantumMicrostate:
 
 class LindbladDissipator:
     """
-    Applies Lindblad jump dissipation, phase decoherence, and computes Bloch thermodynamics.
+    Applies rate-based population pumping and phenomenological phase damping, then computes
+    Bloch thermodynamics. The coherence decay coefficient is phenomenological; this update
+    is not asserted to be an exact GKSL/CPTP channel. The final Cauchy-Schwarz bound is a
+    state-positivity guard, not a Kraus representation or proof of complete positivity.
     """
     def __init__(self, dephase_coupling: float = 0.1):
         self.dephase_coupling = dephase_coupling
 
     def apply_unitary(self, rho: np.ndarray, U: np.ndarray) -> np.ndarray:
-        """Applies exact unitary rotation: rho -> U * rho * U^dagger."""
+        """Applies exact SU(2) unitary rotation: rho -> U * rho * U^dagger."""
         u_dag = U.conj().T
         rho_rot = U @ rho @ u_dag
-        # Enforce exact numerical Hermiticity & unit trace
+        # Enforce exact numerical Hermiticity & unit trace against IEEE-754 rounding
         rho_rot = (rho_rot + rho_rot.conj().T) * 0.5
         tr = np.trace(rho_rot).real
         if tr > 0:
@@ -54,13 +57,13 @@ class LindbladDissipator:
         flow_down: float
     ) -> np.ndarray:
         """
-        Non-unitary population pumping and phase dephasing (Section 5.3).
+        Rate-based population pumping and phenomenological phase damping (Section 5.3).
         """
         rho_00 = rho[0, 0].real
         rho_11 = rho[1, 1].real
         rho_01 = rho[0, 1]
 
-        # 1. Asymmetric Transition Rates (Pumping)
+        # 1. Asymmetric Transition Rates (Pumping via L_+ and L_-)
         denom = max(tau_relax * m_eff, 1e-6)
         gamma_up = max(flow_up, 0.0) / denom
         gamma_down = max(flow_down, 0.0) / denom
@@ -73,7 +76,7 @@ class LindbladDissipator:
         else:
             p_up, p_down = 0.0, 0.0
 
-        # Master equation population exchange
+        # Exact integrated two-state rate-equation population exchange
         new_rho_00 = rho_00 * (1.0 - p_down) + rho_11 * p_up
         new_rho_11 = rho_11 * (1.0 - p_up) + rho_00 * p_down
 
@@ -82,15 +85,16 @@ class LindbladDissipator:
         new_rho_00 = max(0.0, min(1.0, new_rho_00 / tot_tr))
         new_rho_11 = max(0.0, min(1.0, new_rho_11 / tot_tr))
 
-        # 2. Phase Decoherence (Dephasing)
+        # 2. Phenomenological total coherence-decay rate used by the reference model.
+        # This coefficient is not decomposed into GKSL jump and pure-dephasing rates.
         dephase_rate = (1.0 / max(tau_relax, 1e-6)) + self.dephase_coupling * sum_gamma
         new_rho_01 = rho_01 * np.exp(-dephase_rate * dtau)
 
-        # Cauchy-Schwarz physical boundary condition enforcement: |rho_01| <= sqrt(rho_00 * rho_11)
+        # Cauchy-Schwarz physical boundary guard: |rho_01| <= sqrt(rho_00 * rho_11)
         c_lim = np.sqrt(new_rho_00 * new_rho_11)
         c_mag = abs(new_rho_01)
-        if c_mag > c_lim > 0.0:
-            new_rho_01 *= (c_lim / c_mag)
+        if c_mag > c_lim:
+            new_rho_01 = new_rho_01 * (c_lim / c_mag) if c_mag > 0.0 else 0.0j
 
         new_rho = np.array([
             [complex(new_rho_00, 0.0), new_rho_01],
