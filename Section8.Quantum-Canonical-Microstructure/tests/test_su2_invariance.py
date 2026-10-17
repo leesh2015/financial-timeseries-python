@@ -94,12 +94,12 @@ def test_small_nonzero_coupling_is_not_treated_as_zero():
     assert np.allclose(U, expected, atol=1e-14)
 
 
-def test_builder_uses_half_potential_difference():
+def test_builder_uses_full_potential_difference():
     builder = CanonicalHamiltonianBuilder(mass=2.0, friction_pts=0.0)
     bids = np.array([[0.0, 2.0]])
     asks = np.array([[0.0, 4.0]])
     H = builder.build_hamiltonian(bids, asks, 0.0, 0.0, s_scale=2.0)
-    assert H.delta == 0.5
+    assert H.delta == 1.0
 
 
 def test_cauchy_schwarz_boundary_defense():

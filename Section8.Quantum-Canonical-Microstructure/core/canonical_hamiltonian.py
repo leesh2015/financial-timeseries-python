@@ -18,14 +18,14 @@ class MicrostructureHamiltonian:
     Effective Hermitian Microstructure Hamiltonian (Pauli basis H = delta * sigma_z - Delta * sigma_x):
         H = [[  delta, -Delta ],
              [ -Delta, -delta ]]
-    where delta = (V_norm^+ - V_norm^-) / 2 is the longitudinal order book barrier asymmetry,
+    where delta = V_norm^+ - V_norm^- is the longitudinal order book barrier asymmetry,
     and Delta is the friction-discounted transverse kinetic momentum.
     Under U(dtau) = exp(-i * H * dtau / M_eff), the off-diagonal unitary tunneling terms
     evaluate to -i * (-Delta / Omega_raw) * sin(theta) = +i * (Delta / Omega_raw) * sin(theta).
     """
     v_norm_plus: float    # Ask/Up potential energy
     v_norm_minus: float   # Bid/Down potential energy
-    delta: float          # Half-difference of normalized potentials
+    delta: float          # Difference of normalized potentials (v_plus - v_minus)
     kinetic_impulse: float# Friction-gated net momentum (Delta)
     omega_raw: float      # Exact Euclidean norm: sqrt(delta^2 + Delta^2)
     m_eff: float          # Macroscopic logarithmic inertia barrier
@@ -75,7 +75,7 @@ class CanonicalHamiltonianBuilder:
         scale = max(s_scale, 1e-4)
         v_norm_plus = v_int_up / scale
         v_norm_minus = v_int_down / scale
-        delta = 0.5 * (v_norm_plus - v_norm_minus)
+        delta = v_norm_plus - v_norm_minus
 
         # Friction-gated net kinetic impulse: Delta
         delta_raw = (raw_k_buy - raw_k_sell) / max(1.0, scale)
